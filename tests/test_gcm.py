@@ -161,6 +161,12 @@ class GcmTestCase(testutils.TestCase):
             "api_key": "kii",
             "fcm_options": {"content_available": True, "mutable_content": True},
         }
+        config["apps"]["fcm-with-disabled-badge-count"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "api_key": "kii",
+            "fcm_options": {"content_available": True, "mutable_content": True},
+            "send_badge_counts": False,
+        }
         self.service_account_file = tempfile.NamedTemporaryFile()
         self.service_account_file.write(FAKE_SERVICE_ACCOUNT_FILE)
         self.service_account_file.flush()
@@ -541,6 +547,52 @@ class GcmTestCase(testutils.TestCase):
         assert gcm.last_request_body is not None
         self.assertEqual(gcm.last_request_body["mutable_content"], True)
         self.assertEqual(gcm.last_request_body["content_available"], True)
+
+    def test_disable_badge_counts(self) -> None:
+        """
+        Tests that the config option `disable_badge_count` actually removes
+        the unread and missed call count from the notifications
+        """
+        gcm = self.get_test_pushkin("fcm-with-disabled-badge-count")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification(
+                [
+                    {
+                        "app_id": "fcm-with-disabled-badge-count",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        # No 'unread' or 'missed_call' fields are present
+        self.assertEqual(
+            gcm.last_request_body["data"],
+            {
+                "content": {
+                    "body": "I'm floating in a most peculiar way.",
+                    "msgtype": "m.text",
+                    "other": 1,
+                },
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "membership": None,
+                "prio": "high",
+                "room_alias": "#exampleroom:matrix.org",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "room_name": "Mission Control",
+                "sender": "@exampleuser:matrix.org",
+                "sender_display_name": "Major Tom",
+                "type": "m.room.message",
+            },
+        )
 
     def test_api_v1_large_fields(self) -> None:
         """
