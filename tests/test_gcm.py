@@ -687,7 +687,7 @@ class GcmTestCase(testutils.TestCase):
     def test_send_badge_counts_with_badge_only_notification_api_v1(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
-        in API v1 revents badge only notifications from being sent at all.
+        in API v1 prevents badge only notifications from being sent at all.
         """
         gcm = self.get_test_pushkin("com.example.gcm.apiv1.disabled-badges")
         gcm.preload_with_response(

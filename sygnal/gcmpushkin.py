@@ -670,8 +670,9 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             send_badge_counts: If set to `True`, will send the unread and missed_call counts.
 
         Returns:
-            JSON-compatible dict, None if the default_payload is misconfigured or an empty dict
-            if the payload was discarded and the notification should be ignored.
+            JSON-compatible dict. The dict will be empty if the payload was
+            discarded. In this case, the notification should be ignored. Can
+            instead be `None` if the `default_payload` is misconfigured.
         """
         data = {}
         overflow_fields = 0
@@ -743,6 +744,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         if not data.get("room_id") and not data.get("event_id") and not counts:
             logger.warning(
                 "Notification is badge-only but contains no badge count values. Discarding data."
+                "Notification is badge-only but contains no badge count values. Discarding data. " +
+                "If this is not intended, check the `send_badge_counts` parameter in the config."
             )
             return {}
 
