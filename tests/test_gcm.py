@@ -165,6 +165,7 @@ class GcmTestCase(testutils.TestCase):
             "type": "tests.test_gcm.TestGcmPushkin",
             "api_key": "kii",
             "fcm_options": {"content_available": True, "mutable_content": True},
+            # This pusher is specifically testing that this field is `False`.
             "send_badge_counts": False,
         }
         self.service_account_file = tempfile.NamedTemporaryFile()
@@ -548,10 +549,10 @@ class GcmTestCase(testutils.TestCase):
         self.assertEqual(gcm.last_request_body["mutable_content"], True)
         self.assertEqual(gcm.last_request_body["content_available"], True)
 
-    def test_disable_badge_counts(self) -> None:
+    def test_send_badge_counts(self) -> None:
         """
-        Tests that the config option `disable_badge_count` actually removes
-        the unread and missed call count from the notifications
+        Tests that the config option `send_badge_counts` being disabled
+        actually removes the unread and missed call count from notifications
         """
         gcm = self.get_test_pushkin("fcm-with-disabled-badge-count")
         gcm.preload_with_response(
