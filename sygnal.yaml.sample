@@ -212,6 +212,15 @@ apps:
   #  project_id: project-id
   #  service_account_file: /path/to/service_account.json
   #
+  #  # This enables sending the unread message, notification and missed call
+  #  # counts in the push notification data. While this value is useful for non-
+  #  # encrypted contexts, when the user is part of encrypted rooms these
+  #  # count values won't be accurate due to the homeserver being unable
+  #  # to decrypt user and keyword mentions. So there's no point in sending them.
+  #  # If the associated app supports encryption then this should probably be
+  #  # false. Defaults to true.
+  #  #send_badge_counts: false
+  #
   #  # This is the maximum number of connections to GCM servers at any one time
   #  # the default is 20.
   #  #max_connections: 20

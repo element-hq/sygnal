@@ -126,6 +126,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         "max_connections",
         "project_id",
         "service_account_file",
+        "send_badge_counts",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
     def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]) -> None:
@@ -538,7 +539,10 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             # TODO: Implement collapse_key to queue only one message per room.
             failed: List[str] = []
 
-            data = GcmPushkin._build_data(n, device, self.api_version)
+            send_badge_counts = self.get_config("send_badge_counts", bool, True)
+            data = GcmPushkin._build_data(
+                n, device, self.api_version, send_badge_counts
+            )
 
             # Reject pushkey(s) if default_payload is misconfigured
             if data is None:
@@ -651,6 +655,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         n: Notification,
         device: Device,
         api_version: APIVersion,
+        send_badge_counts: bool,
     ) -> Optional[Dict[str, Any]]:
         """
         Build the payload data to be sent.
@@ -658,6 +663,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             n: Notification to build the payload for.
             device: Device information to which the constructed payload
             will be sent.
+            api_version: API version used by Firebase/GCM.
+            send_badge_counts: If set to `True`, will send the unread and missed_call counts.
 
         Returns:
             JSON-compatible dict or None if the default_payload is misconfigured
@@ -714,13 +721,15 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         if n.prio == "low":
             data["prio"] = "normal"
 
-        if getattr(n, "counts", None):
+        if send_badge_counts and getattr(n, "counts", None):
             if api_version is APIVersion.Legacy:
                 data["unread"] = n.counts.unread
                 data["missed_calls"] = n.counts.missed_calls
             elif api_version is APIVersion.V1:
-                data["unread"] = str(n.counts.unread)
-                data["missed_calls"] = str(n.counts.missed_calls)
+                if n.counts.unread:
+                    data["unread"] = str(n.counts.unread)
+                if n.counts.missed_calls:
+                    data["missed_calls"] = str(n.counts.missed_calls)
 
         if overflow_fields > MAX_NOTIFICATION_OVERFLOW_FIELDS:
             logger.warning(
