@@ -727,7 +727,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         if n.prio == "low":
             data["prio"] = "normal"
 
-        counts = {}
+        counts: Dict[str, Any] = {}
         if send_badge_counts and getattr(n, "counts", None):
             if api_version is APIVersion.Legacy:
                 if n.counts.unread:
