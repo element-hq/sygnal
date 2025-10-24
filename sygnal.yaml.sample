@@ -179,6 +179,14 @@ apps:
   #  # Or, a certificate can be used instead:
   #  certfile: com.example.myApp_prod_APNS.pem
   #
+  #  # This enables sending the unread message, notification and missed call
+  #  # counts in the push notification data. While this value is useful for non-
+  #  # encrypted contexts, when the user is part of encrypted rooms these
+  #  # count values won't be accurate due to the homeserver being unable
+  #  # to decrypt user and keyword mentions. So there's no point in sending them.
+  #  # If the associated app supports encryption then this should probably be
+  #  # false. Defaults to true.
+  #
   #  # This is the maximum number of in-flight requests *for this pushkin*
   #  # before additional notifications will be failed.
   #  # (This is a robustness measure to prevent one pushkin stacking up with

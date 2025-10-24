@@ -18,11 +18,17 @@ from sygnal.apnspushkin import ApnsPushkin
 from tests import testutils
 
 PUSHKIN_ID = "com.example.apns"
+PUSHKIN_ID_WITHOUT_BADGES = "com.example.apns.disable_badges"
 PUSHKIN_ID_WITH_PUSH_TYPE = "com.example.apns.push_type"
 
 TEST_CERTFILE_PATH = "/path/to/my/certfile.pem"
 
 DEVICE_EXAMPLE = {"app_id": "com.example.apns", "pushkey": "spqr", "pushkey_ts": 42}
+DEVICE_EXAMPLE_WITHOUT_BADGES = {
+    "app_id": "com.example.apns.disable_badges",
+    "pushkey": "spqr",
+    "pushkey_ts": 42,
+}
 DEVICE_EXAMPLE_WITH_DEFAULT_PAYLOAD = {
     "app_id": "com.example.apns",
     "pushkey": "spqr",
@@ -81,6 +87,12 @@ class ApnsTestCase(testutils.TestCase):
     def config_setup(self, config: Dict[str, Any]) -> None:
         super().config_setup(config)
         config["apps"][PUSHKIN_ID] = {"type": "apns", "certfile": TEST_CERTFILE_PATH}
+        config["apps"][PUSHKIN_ID_WITHOUT_BADGES] = {
+            "type": "apns",
+            "certfile": TEST_CERTFILE_PATH,
+            # This pusher is specifically testing that this field is `False`.
+            "send_badge_counts": False,
+        }
         config["apps"][PUSHKIN_ID_WITH_PUSH_TYPE] = {
             "type": "apns",
             "certfile": TEST_CERTFILE_PATH,
@@ -307,6 +319,57 @@ class ApnsTestCase(testutils.TestCase):
         # Assert
         self.assertEqual(1, method.call_count)
         self.assertEqual({"rejected": ["spqr"]}, resp)
+
+    def test_send_badge_counts(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled
+        actually removes the unread and missed call count from notifications
+        """
+        # Arrange
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(
+            NotificationResult("notID", "200")
+        )
+        test_pushkin = self.get_test_pushkin(PUSHKIN_ID_WITHOUT_BADGES)
+        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        # Act
+        resp = self._request(
+            self._make_dummy_notification([DEVICE_EXAMPLE_WITHOUT_BADGES])
+        )
+
+        # Get request payload
+        ((notification_req,), _kwargs) = method.call_args
+        payload = notification_req.message
+
+        # Assert request worked
+        self.assertEqual(1, method.call_count)
+        self.assertEqual({"rejected": []}, resp)
+
+        # Assert there is no 'badge' in the payload
+        self.assertFalse("badge" in payload["aps"])
+
+    def test_send_badge_counts_with_badge_only_notification(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled
+        prevents the badge-only notification from being sent at all.
+        """
+        # Arrange
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(
+            NotificationResult("notID", "200")
+        )
+        test_pushkin = self.get_test_pushkin(PUSHKIN_ID_WITHOUT_BADGES)
+        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        # Act
+        resp = self._request(
+            self._make_dummy_notification_badge_only([DEVICE_EXAMPLE_WITHOUT_BADGES])
+        )
+
+        # Assert request wasn't sent
+        self.assertEqual(0, method.call_count)
+        self.assertEqual({"rejected": []}, resp)
 
     def test_no_retry_on_4xx(self) -> None:
         """
