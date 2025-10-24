@@ -196,6 +196,32 @@ class GcmTestCase(testutils.TestCase):
             },
         }
 
+        config["apps"]["com.example.gcm.apiv1.disabled-badges"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "api_version": "v1",
+            "project_id": "example_project",
+            "service_account_file": self.service_account_file.name,
+            "send_badge_counts": False,
+            "fcm_options": {
+                "android": {
+                    "notification": {
+                        "body": {
+                            "test body",
+                        },
+                    },
+                },
+                "apns": {
+                    "payload": {
+                        "aps": {
+                            "content-available": 1,
+                            "mutable-content": 1,
+                            "alert": "",
+                        },
+                    },
+                },
+            },
+        }
+
     def tearDown(self) -> None:
         self.service_account_file.close()
 
@@ -591,6 +617,48 @@ class GcmTestCase(testutils.TestCase):
             },
         )
 
+    def test_send_badge_counts_api_v1(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled in API v1
+        actually removes the unread and missed call count from notifications
+        """
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.disabled-badges")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification(
+                [
+                    {
+                        "app_id": "com.example.gcm.apiv1.disabled-badges",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        # No 'unread' or 'missed_call' fields are present
+        self.assertEqual(
+            gcm.last_request_body["message"]["data"],
+            {
+                "content_body": "I'm floating in a most peculiar way.",
+                "content_msgtype": "m.text",
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "prio": "high",
+                "room_alias": "#exampleroom:matrix.org",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "room_name": "Mission Control",
+                "sender": "@exampleuser:matrix.org",
+                "sender_display_name": "Major Tom",
+                "type": "m.room.message",
+            },
+        )
+
     def test_send_badge_counts_with_badge_only_notification(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
@@ -606,6 +674,31 @@ class GcmTestCase(testutils.TestCase):
                 [
                     {
                         "app_id": "fcm-with-disabled-badge-count",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        self.assertEqual(gcm.num_requests, 0)
+
+    def test_send_badge_counts_with_badge_only_notification_api_v1(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled
+        in API v1 revents badge only notifications from being sent at all.
+        """
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.disabled-badges")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_badge_only(
+                [
+                    {
+                        "app_id": "com.example.gcm.apiv1.disabled-badges",
                         "pushkey": "spqr",
                         "pushkey_ts": 42,
                     }
@@ -644,6 +737,41 @@ class GcmTestCase(testutils.TestCase):
         # No 'unread' or 'missed_call' fields are present
         self.assertEqual(
             gcm.last_request_body["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "prio": "high",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+            },
+        )
+
+    def test_send_badge_counts_with_event_id_only_notification_api_v1(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled in API v1
+        actually removes the unread and missed call count from notifications
+        """
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.disabled-badges")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_event_id_only(
+                [
+                    {
+                        "app_id": "com.example.gcm.apiv1.disabled-badges",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        # No 'unread' or 'missed_call' fields are present
+        self.assertEqual(
+            gcm.last_request_body["message"]["data"],
             {
                 "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
                 "prio": "high",
@@ -700,7 +828,6 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
                         "room_alias": "#exampleroom:matrix.org",
-                        "membership": None,
                         "sender_display_name": "Major Tom",
                         "content_msgtype": "m.text",
                         "content_body": "I'm floating in a most peculiar way.",
