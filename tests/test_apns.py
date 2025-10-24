@@ -90,6 +90,7 @@ class ApnsTestCase(testutils.TestCase):
         config["apps"][PUSHKIN_ID_WITHOUT_BADGES] = {
             "type": "apns",
             "certfile": TEST_CERTFILE_PATH,
+            # This pusher is specifically testing that this field is `False`.
             "send_badge_counts": False,
         }
         config["apps"][PUSHKIN_ID_WITH_PUSH_TYPE] = {
@@ -319,10 +320,10 @@ class ApnsTestCase(testutils.TestCase):
         self.assertEqual(1, method.call_count)
         self.assertEqual({"rejected": ["spqr"]}, resp)
 
-    def test_disable_send_badges(self) -> None:
+    def test_send_badge_counts(self) -> None:
         """
-        Tests that the config option `disable_badge_count` actually removes
-        the unread and missed call count from the notifications.
+        Tests that the config option `send_badge_counts` being disabled
+        actually removes the unread and missed call count from notifications
         """
         # Arrange
         method = self.apns_pushkin_snotif
@@ -348,10 +349,10 @@ class ApnsTestCase(testutils.TestCase):
         # Assert there is no 'badge' in the payload
         self.assertFalse("badge" in payload["aps"])
 
-    def test_disable_send_badges_with_badge_only_notification(self) -> None:
+    def test_send_badge_counts_with_badge_only_notification(self) -> None:
         """
-        Tests that the config option `disable_badge_count` actually removes
-        the unread and missed call count from the notifications.
+        Tests that the config option `send_badge_counts` being disabled
+        prevents the badge-only notification from being sent.
         """
         # Arrange
         method = self.apns_pushkin_snotif
