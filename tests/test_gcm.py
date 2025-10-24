@@ -595,6 +595,31 @@ class GcmTestCase(testutils.TestCase):
             },
         )
 
+    def test_send_badge_counts_with_badge_only_notification(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled
+        prevents badge only notifications from being sent at all.
+        """
+        gcm = self.get_test_pushkin("fcm-with-disabled-badge-count")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_badge_only(
+                [
+                    {
+                        "app_id": "fcm-with-disabled-badge-count",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        self.assertEqual(gcm.num_requests, 0)
+
     def test_api_v1_large_fields(self) -> None:
         """
         Tests the gcm pushkin truncates unusually large fields. Includes large

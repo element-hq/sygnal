@@ -551,6 +551,9 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                     "please ensure that default_payload is a dict."
                 )
                 return pushkeys
+            elif len(data) == 0:
+                log.warning("Discarding notification since it contains no data.")
+                return []
 
             headers = {
                 "User-Agent": ["sygnal"],
@@ -667,7 +670,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             send_badge_counts: If set to `True`, will send the unread and missed_call counts.
 
         Returns:
-            JSON-compatible dict or None if the default_payload is misconfigured
+            JSON-compatible dict, None if the default_payload is misconfigured or an empty dict
+            if the payload was discarded and the notification should be ignored.
         """
         data = {}
         overflow_fields = 0
@@ -721,15 +725,27 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         if n.prio == "low":
             data["prio"] = "normal"
 
+        counts = {}
         if send_badge_counts and getattr(n, "counts", None):
             if api_version is APIVersion.Legacy:
-                data["unread"] = n.counts.unread
-                data["missed_calls"] = n.counts.missed_calls
+                if n.counts.unread:
+                    counts["unread"] = n.counts.unread
+                if n.counts.missed_calls:
+                    counts["missed_calls"] = n.counts.missed_calls
             elif api_version is APIVersion.V1:
                 if n.counts.unread:
-                    data["unread"] = str(n.counts.unread)
+                    counts["unread"] = str(n.counts.unread)
                 if n.counts.missed_calls:
-                    data["missed_calls"] = str(n.counts.missed_calls)
+                    counts["missed_calls"] = str(n.counts.missed_calls)
+
+        if not data.get("room_id") and not data.get("event_id") and not counts:
+            logger.warning(
+                "Notification is badge-only but contains no badge count values. Discarding data."
+            )
+            return {}
+
+        # Add count data to the payload data
+        data.update(counts)
 
         if overflow_fields > MAX_NOTIFICATION_OVERFLOW_FIELDS:
             logger.warning(
