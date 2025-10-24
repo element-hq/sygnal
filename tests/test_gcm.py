@@ -235,7 +235,6 @@ class GcmTestCase(testutils.TestCase):
                     "sender": "@exampleuser:matrix.org",
                     "room_name": "Mission Control",
                     "room_alias": "#exampleroom:matrix.org",
-                    "membership": None,
                     "sender_display_name": "Major Tom",
                     "content": {
                         "msgtype": "m.text",
@@ -284,7 +283,6 @@ class GcmTestCase(testutils.TestCase):
                         "sender": "@exampleuser:matrix.org",
                         "room_name": "Mission Control",
                         "room_alias": "#exampleroom:matrix.org",
-                        "membership": None,
                         "sender_display_name": "Major Tom",
                         "content_msgtype": "m.text",
                         "content_body": "I'm floating in a most peculiar way.",
@@ -500,7 +498,6 @@ class GcmTestCase(testutils.TestCase):
                         "sender": "@exampleuser:matrix.org",
                         "room_name": "Mission Control",
                         "room_alias": "#exampleroom:matrix.org",
-                        "membership": None,
                         "sender_display_name": "Major Tom",
                         "content_msgtype": "m.text",
                         "content_body": "I'm floating in a most peculiar way.",
@@ -584,7 +581,6 @@ class GcmTestCase(testutils.TestCase):
                     "other": 1,
                 },
                 "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                "membership": None,
                 "prio": "high",
                 "room_alias": "#exampleroom:matrix.org",
                 "room_id": "!slw48wfj34rtnrf:example.com",
@@ -619,6 +615,41 @@ class GcmTestCase(testutils.TestCase):
 
         self.assertEqual(resp, {"rejected": []})
         self.assertEqual(gcm.num_requests, 0)
+
+    def test_send_badge_counts_with_event_id_only_notification(self) -> None:
+        """
+        Tests that the config option `send_badge_counts` being disabled
+        actually removes the unread and missed call count from notifications
+        """
+        gcm = self.get_test_pushkin("fcm-with-disabled-badge-count")
+        gcm.preload_with_response(
+            200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_event_id_only(
+                [
+                    {
+                        "app_id": "fcm-with-disabled-badge-count",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        # No 'unread' or 'missed_call' fields are present
+        self.assertEqual(
+            gcm.last_request_body["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "prio": "high",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+            },
+        )
 
     def test_api_v1_large_fields(self) -> None:
         """

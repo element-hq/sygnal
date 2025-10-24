@@ -698,17 +698,19 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             "room_id",
         ]:
             if hasattr(n, attr):
-                data[attr] = getattr(n, attr)
+                current = getattr(n, attr)
+                if current is None:
+                    continue
                 # Truncate fields to a sensible maximum length. If the whole
                 # body is too long, GCM will reject it.
-                if data[attr] is not None and isinstance(data[attr], str):
+                if current is not None and isinstance(current, str):
                     # The only `attr` that shouldn't be of type `str` is `content`,
                     # which is handled explicitly later on.
-                    data[attr], truncated = truncate_str(
-                        data[attr], MAX_BYTES_PER_FIELD
-                    )
+                    data[attr], truncated = truncate_str(current, MAX_BYTES_PER_FIELD)
                     if truncated:
                         overflow_fields += 1
+                elif attr == "content" and current is not None:
+                    data["content"] = current
 
         if api_version is APIVersion.V1:
             if isinstance(data.get("content"), dict):
