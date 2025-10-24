@@ -1,1 +1,1 @@
-Add send_badge_counts option for APN pushkins.
+Add `send_badge_counts` option for APN pushkins.

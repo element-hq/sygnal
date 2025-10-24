@@ -352,7 +352,7 @@ class ApnsTestCase(testutils.TestCase):
     def test_send_badge_counts_with_badge_only_notification(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
-        prevents the badge-only notification from being sent.
+        prevents the badge-only notification from being sent at all.
         """
         # Arrange
         method = self.apns_pushkin_snotif
