@@ -742,7 +742,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                     counts["missed_calls"] = str(n.counts.missed_calls)
 
         if not data.get("room_id") and not data.get("event_id") and not counts:
-            logger.info(
+            logger.debug(
                 "Notification is badge-only but contains no badge count values. Discarding data. "
                 + "If this is not intended, check the `send_badge_counts` parameter in the config."
             )
