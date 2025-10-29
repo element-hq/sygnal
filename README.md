@@ -10,6 +10,8 @@ The [Matrix Specification](https://spec.matrix.org/latest/push-gateway-api/)
 describes the protocol that Matrix Home Servers use to send notifications to Push
 Gateways such as Sygnal.
 
+Community support and discussion occurs at [#sygnal:matrix.org](https://matrix.to/#/#sygnal:matrix.org).
+
 
 Contributing
 ============
