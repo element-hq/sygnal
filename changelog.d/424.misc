@@ -1,1 +1,0 @@
-Make sure no empty badge-only notifications are sent if there are no badge counts in FCM.

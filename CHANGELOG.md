@@ -1,3 +1,19 @@
+# Sygnal 0.17.0 (2025-11-05)
+
+### Features
+
+- Add `send_badge_counts` option for FCM/GCM pushkin. ([\#421](https://github.com/element-hq/sygnal/issues/421))
+- Add `send_badge_counts` option for APN pushkins. ([\#423](https://github.com/element-hq/sygnal/issues/423))
+
+### Improved Documentation
+
+- Link to Sygnal's Matrix room in the README. ([\#425](https://github.com/element-hq/sygnal/issues/425))
+
+### Internal Changes
+
+- Make sure no empty badge-only notifications are sent if there are no badge counts in FCM. ([\#424](https://github.com/element-hq/sygnal/issues/424))
+
+
 # Sygnal 0.16.0 (2025-07-18)
 
 This is the first Sygnal release under an AGPLv3.0 licence (with CLA, for
