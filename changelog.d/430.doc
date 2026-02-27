@@ -1,0 +1,1 @@
+Updated the WebPush documentation to note that `mailto:` should not be included in the `vapid_contact_email` config file. Contributed by @Just-Insane.
