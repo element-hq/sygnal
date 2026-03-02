@@ -213,6 +213,22 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 "Config field fcm_options, if set, must be a dictionary of options"
             )
 
+        # Initialized in create() because aiohttp.ClientSession must be
+        # instantiated within a running async event loop.
+        self.google_auth_request: google.auth.transport._aiohttp_requests.Request
+
+    @classmethod
+    async def create(
+        cls, name: str, sygnal: "Sygnal", config: Dict[str, Any]
+    ) -> "GcmPushkin":
+        """
+        Async factory that creates a GcmPushkin instance.
+
+        aiohttp.ClientSession must be created within a running event loop,
+        so we override create() to handle that initialization.
+        """
+        instance = cls(name, sygnal, config)
+
         session = None
         proxy_url = sygnal.config.get("proxy")
         if proxy_url:
@@ -222,9 +238,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
 
             session = aiohttp.ClientSession(trust_env=True, auto_decompress=False)
 
-        self.google_auth_request = google.auth.transport._aiohttp_requests.Request(
+        instance.google_auth_request = google.auth.transport._aiohttp_requests.Request(
             session=session
         )
+
+        return instance
 
     async def _perform_http_request(
         self, body: Dict[str, Any], headers: Dict[AnyStr, List[AnyStr]]
