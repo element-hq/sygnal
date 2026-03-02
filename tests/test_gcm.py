@@ -75,6 +75,12 @@ DEVICE_EXAMPLE_IOS = {
     "pushkey_ts": 42,
 }
 
+DEVICE_EXAMPLE_APIV1_WITH_NOTIFICATION_CONTENT = {
+    "app_id": "com.example.gcm.apiv1.notification-content",
+    "pushkey": "spqr",
+    "pushkey_ts": 42,
+}
+
 
 class TestCredentials:
     def __init__(self) -> None:
@@ -220,6 +226,14 @@ class GcmTestCase(testutils.TestCase):
                     },
                 },
             },
+        }
+
+        config["apps"]["com.example.gcm.apiv1.notification-content"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "api_version": "v1",
+            "project_id": "example_project",
+            "service_account_file": self.service_account_file.name,
+            "include_notification_content": True,
         }
 
     def tearDown(self) -> None:
@@ -879,3 +893,98 @@ ooooooooooxxxxxxxxxx🦉oooooo£xxxxxxxx☻oo🦉…",
         self.assertEqual(
             notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
         )
+
+    def test_include_notification_content_api_v1(self) -> None:
+        """
+        Tests that when include_notification_content is True, a visible
+        notification payload is added to FCM v1 requests with title and body
+        derived from the message data.
+        """
+        self.apns_pushkin_snotif = MagicMock()
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.notification-content")
+
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(([], []))
+
+        resp = self._request(
+            self._make_dummy_notification(
+                [DEVICE_EXAMPLE_APIV1_WITH_NOTIFICATION_CONTENT]
+            )
+        )
+
+        self.assertEqual(1, method.call_count)
+        notification_req = method.call_args.args
+
+        body = notification_req[2]
+        # Verify the notification key is present with content from the message
+        self.assertIn("notification", body["message"])
+        self.assertEqual(body["message"]["notification"]["title"], "Mission Control")
+        self.assertEqual(
+            body["message"]["notification"]["body"],
+            "I'm floating in a most peculiar way.",
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+
+    def test_include_notification_content_fallback_title(self) -> None:
+        """
+        Tests that when room_name is not available, the notification title
+        falls back to sender_display_name, then sender.
+        """
+        self.apns_pushkin_snotif = MagicMock()
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.notification-content")
+
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(([], []))
+
+        # Send a notification without room_name
+        notif = {
+            "notification": {
+                "id": "$3957tyerfgewrf384",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "type": "m.room.message",
+                "sender": "@exampleuser:matrix.org",
+                "sender_display_name": "Major Tom",
+                "prio": "high",
+                "content": {"msgtype": "m.text", "body": "Hello"},
+                "counts": {"unread": 1},
+                "devices": [DEVICE_EXAMPLE_APIV1_WITH_NOTIFICATION_CONTENT],
+            }
+        }
+        self._request(notif)
+
+        self.assertEqual(1, method.call_count)
+        notification_req = method.call_args.args
+        body = notification_req[2]
+
+        # Falls back to sender_display_name when room_name is absent
+        self.assertEqual(body["message"]["notification"]["title"], "Major Tom")
+        self.assertEqual(body["message"]["notification"]["body"], "Hello")
+
+    def test_notification_content_disabled_by_default(self) -> None:
+        """
+        Tests that the standard apiv1 pushkin (without include_notification_content)
+        does NOT include a notification key (unless set via fcm_options).
+        """
+        self.apns_pushkin_snotif = MagicMock()
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1")
+
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(([], []))
+
+        self._request(self._make_dummy_notification([DEVICE_EXAMPLE_APIV1]))
+
+        self.assertEqual(1, method.call_count)
+        notification_req = method.call_args.args
+        body = notification_req[2]
+
+        # The standard apiv1 config has an android.notification via fcm_options,
+        # but should NOT have a top-level notification key from our feature.
+        self.assertNotIn("notification", body["message"])
