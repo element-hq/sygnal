@@ -153,7 +153,9 @@ class Pushkin(abc.ABC):
         pass
 
     @classmethod
-    async def create(cls, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
+    async def create(
+        cls, name: str, sygnal: "Sygnal", config: Dict[str, Any]
+    ) -> "Pushkin":
         """
         Override this if your pushkin needs to call async code in order to
         be constructed. Otherwise, it defaults to just invoking the Python-standard
