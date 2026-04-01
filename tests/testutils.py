@@ -8,6 +8,8 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
+import pathlib
+from collections.abc import AsyncGenerator
 from typing import Any, Dict, List, Union
 
 import pytest_asyncio
@@ -34,7 +36,9 @@ class TestCase:
         pass
 
     @pytest_asyncio.fixture(autouse=True)
-    async def _setup_sygnal(self, aiohttp_client, tmp_path):
+    async def _setup_sygnal(
+        self, aiohttp_client: Any, tmp_path: pathlib.Path
+    ) -> AsyncGenerator[None]:
         logging_config = {
             "setup": {
                 "disable_existing_loggers": False,
@@ -92,7 +96,7 @@ class TestCase:
 
         patch.stopall()
 
-    def _make_dummy_notification(self, devices):
+    def _make_dummy_notification(self, devices: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -114,7 +118,9 @@ class TestCase:
             }
         }
 
-    def _make_dummy_notification_event_id_only(self, devices):
+    def _make_dummy_notification_event_id_only(
+        self, devices: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         return {
             "notification": {
                 "room_id": "!slw48wfj34rtnrf:example.com",
@@ -124,7 +130,9 @@ class TestCase:
             }
         }
 
-    def _make_dummy_notification_badge_only(self, devices):
+    def _make_dummy_notification_badge_only(
+        self, devices: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         return {
             "notification": {
                 "id": "",
@@ -139,7 +147,9 @@ class TestCase:
     # This will make the truncation (which is `str[: 1024 - 3]`) occur in the middle of a unicode
     # character. The truncation logic should recognize this and return the string starting before
     # the `⚑`, with a `…` appended to indicate the string was truncated.
-    def _make_dummy_notification_large_fields(self, devices):
+    def _make_dummy_notification_large_fields(
+        self, devices: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -264,13 +274,13 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
 
 
 class DummyResponse:
-    def __init__(self, code):
+    def __init__(self, code: int) -> None:
         self.status = code
         self.headers: CIMultiDict[str] = CIMultiDict()
 
 
-def make_async_magic_mock(ret_val):
-    async def dummy(*_args, **_kwargs):
+def make_async_magic_mock(ret_val: Any) -> Any:
+    async def dummy(*_args: Any, **_kwargs: Any) -> Any:
         return ret_val
 
     return dummy
