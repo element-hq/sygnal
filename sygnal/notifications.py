@@ -42,9 +42,10 @@ def get_key(
 ) -> Optional[T]:
     if key not in raw:
         return default
-    if not isinstance(raw[key], type_):
+    value = raw[key]
+    if not isinstance(value, type_):
         raise InvalidNotificationException(f"{key} is of invalid type")
-    return raw[key]
+    return value
 
 
 class Tweaks:
@@ -122,12 +123,13 @@ class Pushkin(abc.ABC):
     ) -> Optional[T]:
         if key not in self.cfg:
             return default
-        if not isinstance(self.cfg[key], type_):
+        value = self.cfg[key]
+        if not isinstance(value, type_):
             raise PushkinSetupException(
                 f"{key} is of incorrect type, please check that the entry for {key} is "
                 f"formatted correctly in the config file. "
             )
-        return self.cfg[key]
+        return value
 
     def handles_appid(self, appid: str) -> bool:
         """Checks whether the pushkin is responsible for the given app ID"""
