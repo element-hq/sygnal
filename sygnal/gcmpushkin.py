@@ -300,7 +300,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 span,
             )
         else:
-            log.warn(
+            log.warning(
                 "Processing response for unknown API version: %s", self.api_version
             )
             return [], []

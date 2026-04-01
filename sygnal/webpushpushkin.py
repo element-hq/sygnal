@@ -124,7 +124,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
     ) -> List[str]:
         p256dh = device.pushkey
         if not isinstance(device.data, dict):
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey %s; device.data is not a dict", device.pushkey
             )
             return [device.pushkey]
@@ -138,7 +138,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         auth = device.data.get("auth")
 
         if not p256dh or not isinstance(endpoint, str) or not isinstance(auth, str):
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey; subscription info incomplete or invalid "
                 + "(p256dh: %s, endpoint: %r, auth: %r)",
                 p256dh,
@@ -298,7 +298,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
                 pass
         # permanent errors
         if response.status == 404 or response.status == 410:
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey %s; subscription is invalid on %s: %d: %s",
                 pushkey,
                 endpoint_domain,
@@ -308,7 +308,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
             return True
         # and temporary ones
         if response.status >= 400:
-            logger.warn(
+            logger.warning(
                 "webpush request failed for pushkey %s; %s responded with %d: %s",
                 pushkey,
                 endpoint_domain,
