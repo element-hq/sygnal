@@ -91,7 +91,7 @@ zope-interface = ">=5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "==24.3.0"
-coverage = "~=5.5"
+coverage = "~=7.6"
 ruff = "==0.0.291"
 isort = "~=5.10"
 google-auth-stubs = "==0.2.0"
