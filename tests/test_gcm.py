@@ -10,7 +10,7 @@
 import json
 import tempfile
 from typing import TYPE_CHECKING, Any, Dict, Tuple
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from tests import testutils
 from tests.testutils import DummyResponse
@@ -483,6 +483,12 @@ class GcmTestCase(testutils.TestCase):
         Also checks the notification message to ensure it is sane after retrying
         multiple times.
         """
+        # Patch asyncio.sleep so retries don't wait real time
+        async def _instant_sleep(_delay):
+            pass
+
+        patch("sygnal.gcmpushkin.asyncio.sleep", _instant_sleep).start()
+
         self.gcm_pushkin_snotif = MagicMock()
 
         gcm = self.get_test_pushkin("com.example.gcm.apiv1")

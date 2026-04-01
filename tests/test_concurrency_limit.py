@@ -44,7 +44,7 @@ class SlowConcurrencyLimitedDummyPushkin(ConcurrencyLimitedPushkin):
         We will deliver the notification to the mighty nobody
         and we will take one second to do it, because we are slow!
         """
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.01)
         return []
 
 

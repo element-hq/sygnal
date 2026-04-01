@@ -380,6 +380,12 @@ class ApnsTestCase(testutils.TestCase):
         Test that we DO retry when we get a 5xx error and do not mark as
         rejected.
         """
+        # Patch asyncio.sleep so retries don't wait real time
+        async def _instant_sleep(_delay):
+            pass
+
+        patch("sygnal.apnspushkin.asyncio.sleep", _instant_sleep).start()
+
         # Arrange
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(
