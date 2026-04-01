@@ -144,16 +144,18 @@ Running
 
 ### Python
 
+Sygnal uses [uv](https://docs.astral.sh/uv/) for dependency management.
+
 With default configuration file name of `sygnal.yaml`:
 
 ```sh
-python -m sygnal.sygnal
+uv run sygnal
 ```
 
 With custom configuration file name:
 
 ```sh
-SYGNAL_CONF=/path/to/custom_sygnal.conf python -m sygnal.sygnal
+SYGNAL_CONF=/path/to/custom_sygnal.conf uv run sygnal
 ```
 
 Python 3.8 or higher is required.
