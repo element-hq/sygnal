@@ -119,7 +119,7 @@ jobs:
           sudo chown -R :root scripts-dev/proxy-test/mitmproxy
 
       - name: Start test services in Compose file
-        uses: hoverkraft-tech/compose-action@8be2d741e891ac9b8ac20825e6f3904149599925 # v2.2.0
+        uses: hoverkraft-tech/compose-action@4894d2492015c1774ee5a13a95b1072093087ec3 # v2.5.0
         with:
           compose-file: scripts-dev/proxy-test/docker-compose.yml
 
