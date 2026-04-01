@@ -1,114 +1,120 @@
-[tool.towncrier]
-    package = "sygnal"
-    filename = "CHANGELOG.md"
-    directory = "changelog.d"
-    issue_format = "[\\#{issue}](https://github.com/element-hq/sygnal/issues/{issue})"
-
-    [[tool.towncrier.type]]
-        directory = "feature"
-        name = "Features"
-        showcontent = true
-
-    [[tool.towncrier.type]]
-        directory = "bugfix"
-        name = "Bugfixes"
-        showcontent = true
-
-    [[tool.towncrier.type]]
-        directory = "docker"
-        name = "Updates to the Docker image"
-        showcontent = true
-
-    [[tool.towncrier.type]]
-        directory = "doc"
-        name = "Improved Documentation"
-        showcontent = true
-
-    [[tool.towncrier.type]]
-        directory = "removal"
-        name = "Deprecations and Removals"
-        showcontent = true
-
-    [[tool.towncrier.type]]
-        directory = "misc"
-        name = "Internal Changes"
-        showcontent = true
-
-[tool.isort]
-line_length = 88
-sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
-default_section = "THIRDPARTY"
-known_first_party = "sygnal"
-known_tests = "tests"
-multi_line_output = 3
-include_trailing_comma = true
-combine_as_imports = true
-
-[tool.ruff]
-line-length = 88
-ignore = [
-    "E501", # https://beta.ruff.rs/docs/rules/line-too-long/. Black enforces this for us.
-]
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
+[project]
 name = "matrix-sygnal"
 version = "0.17.0"
 description = "Reference Push Gateway for Matrix Notifications"
-authors = ["Matrix.org Team and Contributors <packages@matrix.org>"]
 readme = "README.md"
 license = "AGPL-3.0-only OR LicenseRef-Element-Commercial"
-packages = [
-    { include = "sygnal" },
+authors = [
+    { name = "Matrix.org Team and Contributors", email = "packages@matrix.org" },
 ]
-include = [
-    { path = "tests", format = "sdist" },
+requires-python = ">=3.8"
+dependencies = [
+    "aioapns>=3.0,<4.0",
+    "aiohttp>=3.10.11,<4",
+    "attrs>=19.2.0",
+    "cryptography>=2.6.1",
+    "idna>=2.8",
+    "google-auth>=2.27.0",
+    "jaeger-client>=4.0.0",
+    "matrix-common==1.3.0",
+    "opentracing>=2.2.0",
+    "prometheus-client>=0.7.0,<0.8",
+    "py-vapid>=1.7.0",
+    "pyopenssl>=17.5.0",
+    "pywebpush>=1.13.0",
+    "pyyaml>=5.1.1",
+    "sentry-sdk>=0.10.2",
+    "service-identity>=18.1.0",
+    "twisted>=19.7",
+    "zope-interface>=5.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8.0"
-aioapns = ">=3.0,<4.0"
-aiohttp = "^3.10.11"
-attrs = ">=19.2.0"
-cryptography = ">=2.6.1"
-idna = ">=2.8"
-google-auth = ">=2.27.0"
-jaeger-client = ">=4.0.0"
-matrix-common = "==1.3.0"
-opentracing = ">=2.2.0"
-prometheus_client = ">=0.7.0,<0.8"
-py-vapid = ">=1.7.0"
-pyOpenSSL = ">=17.5.0"
-pywebpush = ">=1.13.0"
-pyyaml = ">=5.1.1"
-sentry-sdk = ">=0.10.2"
-service_identity = ">=18.1.0"
-Twisted = ">=19.7"
-zope-interface = ">=5.0.0"
+[project.urls]
+Homepage = "https://github.com/element-hq/sygnal"
+Documentation = "https://github.com/element-hq/sygnal/tree/main/docs"
+Repository = "https://github.com/element-hq/sygnal.git"
+Changelog = "https://github.com/element-hq/sygnal/blob/main/CHANGELOG.md"
 
-[tool.poetry.group.dev.dependencies]
-black = "==24.3.0"
-coverage = "~=5.5"
-ruff = "==0.0.291"
-isort = "~=5.10"
-google-auth-stubs = "==0.2.0"
-mypy = "==1.5.1"
-mypy-zope = "==1.0.1"
-towncrier = ">=18.6.0"
-tox = ">=4.15.0"
-types-opentracing = ">=2.4.2"
-types-pyOpenSSL = ">=24.0.0"
-types-PyYAML = ">=6.0.0"
-typing-extensions = ">=3.7.4"
-
-[tool.poetry.urls]
-"homepage" = "https://github.com/element-hq/sygnal"
-"documentation" = "https://github.com/element-hq/sygnal/tree/main/docs"
-"repository" = "https://github.com/element-hq/sygnal.git"
-"changelog" = "https://github.com/element-hq/sygnal/blob/main/CHANGELOG.md"
-
-[tool.poetry.scripts]
+[project.scripts]
 sygnal = "sygnal.sygnal:main"
+
+[dependency-groups]
+dev = [
+    "coverage~=5.5",
+    "mypy==1.5.1",
+    "mypy-zope==1.0.1",
+    "google-auth-stubs==0.2.0",
+    "ruff>=0.11",
+    "towncrier>=18.6.0",
+    "types-opentracing>=2.4.2",
+    "types-pyopenssl>=24.0.0",
+    "types-pyyaml>=6.0.0",
+    "typing-extensions>=3.7.4",
+    "pytest>=7.0",
+    "pytest-twisted",
+]
+
+[build-system]
+requires = ["uv_build>=0.7,<0.8"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sygnal"]
+known-third-party = ["tests"]
+combine-as-imports = true
+
+[tool.towncrier]
+package = "sygnal"
+filename = "CHANGELOG.md"
+directory = "changelog.d"
+issue_format = "[\\#{issue}](https://github.com/element-hq/sygnal/issues/{issue})"
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bugfixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "docker"
+name = "Updates to the Docker image"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Improved Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removal"
+name = "Deprecations and Removals"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Internal Changes"
+showcontent = true
+
+[tool.pytest.ini_options]
+twisted = true
