@@ -262,8 +262,8 @@ with `event_id_only` format.
 
 #### Setup & configuration
 
-In the sygnal virtualenv, generate the server key pair by running
-`vapid --gen --applicationServerKey`. This will generate a `private_key.pem`
+Generate the server key pair by running
+`uv run vapid --gen --applicationServerKey`. This will generate a `private_key.pem`
 (which you'll refer to in the config file with `vapid_private_key`) 
 and `public_key.pem` file, and also string labeled `Application Server Key`.
 
