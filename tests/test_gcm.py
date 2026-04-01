@@ -8,7 +8,6 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
-import tempfile
 from typing import TYPE_CHECKING, Any, Dict, Tuple
 from unittest.mock import MagicMock, patch
 
@@ -166,14 +165,13 @@ class GcmTestCase(testutils.TestCase):
             # This pusher is specifically testing that this field is `False`.
             "send_badge_counts": False,
         }
-        self.service_account_file = tempfile.NamedTemporaryFile()
-        self.service_account_file.write(FAKE_SERVICE_ACCOUNT_FILE)
-        self.service_account_file.flush()
+        service_account_file = self.tmp_path / "service_account.json"
+        service_account_file.write_bytes(FAKE_SERVICE_ACCOUNT_FILE)
         config["apps"]["com.example.gcm.apiv1"] = {
             "type": "tests.test_gcm.StubGcmPushkin",
             "api_version": "v1",
             "project_id": "example_project",
-            "service_account_file": self.service_account_file.name,
+            "service_account_file": str(service_account_file),
             "fcm_options": {
                 "android": {
                     "notification": {
@@ -198,7 +196,7 @@ class GcmTestCase(testutils.TestCase):
             "type": "tests.test_gcm.StubGcmPushkin",
             "api_version": "v1",
             "project_id": "example_project",
-            "service_account_file": self.service_account_file.name,
+            "service_account_file": str(service_account_file),
             "send_badge_counts": False,
             "fcm_options": {
                 "android": {
