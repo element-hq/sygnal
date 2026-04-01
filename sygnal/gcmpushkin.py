@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 import time
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
@@ -19,6 +20,12 @@ import aiohttp
 import google.auth.exceptions
 from google.auth._default_async import load_credentials_from_file
 from google.oauth2._credentials_async import Credentials
+
+# Suppress the DeprecationWarning from AuthorizedSession inheriting
+# aiohttp.ClientSession — it's defined in the module but we don't use it.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from google.auth.transport._aiohttp_requests import Request as _AiohttpRequest
 from opentracing import Span, logs, tags
 from prometheus_client import Counter, Gauge, Histogram
 
@@ -96,46 +103,6 @@ BAD_PUSHKEY_FAILURE_CODES = [
 BAD_MESSAGE_FAILURE_CODES = ["MessageTooBig", "InvalidDataKey", "InvalidTtl"]
 
 DEFAULT_MAX_CONNECTIONS = 20
-
-
-class _AiohttpResponse:
-    """Adapter from aiohttp.ClientResponse to google.auth.transport.Response."""
-
-    def __init__(self, status: int, headers: Dict[str, str], data: bytes):
-        self.status = status
-        self.headers = headers
-        self.data = data
-
-
-class _AiohttpRequest:
-    """Adapter from aiohttp.ClientSession to google.auth.transport.Request."""
-
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None):
-        self._session = session
-
-    async def __call__(
-        self,
-        url: str,
-        method: str = "GET",
-        body: Optional[bytes] = None,
-        headers: Optional[Dict[str, str]] = None,
-        timeout: Optional[int] = None,
-        **kwargs: Any,
-    ) -> _AiohttpResponse:
-        ephemeral = self._session is None
-        session = self._session or aiohttp.ClientSession(auto_decompress=False)
-        try:
-            client_timeout = aiohttp.ClientTimeout(total=timeout) if timeout else None
-            resp = await session.request(
-                method, url, data=body, headers=headers, timeout=client_timeout
-            )
-            data = await resp.read()
-            return _AiohttpResponse(resp.status, dict(resp.headers), data)
-        except aiohttp.ClientError as exc:
-            raise google.auth.exceptions.TransportError(str(exc)) from exc
-        finally:
-            if ephemeral:
-                await session.close()
 
 
 class APIVersion(Enum):
