@@ -12,6 +12,7 @@ import pathlib
 from collections.abc import AsyncGenerator
 from typing import Any, Dict, List, Union
 
+import aiohttp.test_utils
 import pytest_asyncio
 from multidict import CIMultiDict
 
@@ -88,7 +89,7 @@ class TestCase:
         self.post_setup()
 
         app = create_app(self.sygnal)
-        self.client = await aiohttp_client(app)
+        self.client: aiohttp.test_utils.TestClient = await aiohttp_client(app)
 
         yield
 
@@ -259,7 +260,7 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
         if resp.status != 200:
             return resp.status
 
-        return await resp.json()
+        return await resp.json()  # type: ignore[no-any-return]
 
     async def _multi_requests(
         self, payloads: List[Union[str, dict]]

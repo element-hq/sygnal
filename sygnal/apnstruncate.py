@@ -111,12 +111,16 @@ def _choppable_get(
     aps: Dict[str, Any],
     choppable: Choppable,
 ) -> str:
+    result: str
     if choppable[0] == "alert":
-        return aps["alert"]
+        result = aps["alert"]
     elif choppable[0] == "alert.body":
-        return aps["alert"]["body"]
+        result = aps["alert"]["body"]
     elif choppable[0] == "alert.loc-args":
-        return aps["alert"]["loc-args"][choppable[1]]
+        result = aps["alert"]["loc-args"][choppable[1]]
+    else:
+        raise ValueError(f"Unknown choppable: {choppable[0]}")
+    return result
 
 
 def _choppable_put(
