@@ -41,14 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.8"
-      - name: Patch pyproject.toml to require oldest dependencies
-        run: |
-          # Ugly. Could use something like https://pyproject-parser.readthedocs.io/en/latest/cli.html#info in the future.
-          sed --in-place=.bak -e 's/>=/==/g' pyproject.toml
-          diff pyproject.toml.bak pyproject.toml || true # diff returns 1 if there is a change
-      - name: Install Sygnal
-        run: python -m pip install -e .
-      - run: python -m pytest tests/
+
+      - uses: astral-sh/setup-uv@v5
+
+      - run: uv sync --resolution=lowest-direct --python=3.11
+      - run: uv run pytest tests/

@@ -483,7 +483,7 @@ class GcmTestCase(testutils.TestCase):
         """
 
         # Patch asyncio.sleep so retries don't wait real time
-        async def _instant_sleep(_delay):
+        async def _instant_sleep(_delay: float) -> None:
             pass
 
         patch("sygnal.gcmpushkin.asyncio.sleep", _instant_sleep).start()

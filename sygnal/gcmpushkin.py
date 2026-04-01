@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import aiohttp
 import google.auth.exceptions
-import google.auth.transport
 from google.auth._default_async import load_credentials_from_file
 from google.oauth2._credentials_async import Credentials
 from opentracing import Span, logs, tags
@@ -99,41 +98,36 @@ BAD_MESSAGE_FAILURE_CODES = ["MessageTooBig", "InvalidDataKey", "InvalidTtl"]
 DEFAULT_MAX_CONNECTIONS = 20
 
 
-class _AiohttpResponse(google.auth.transport.Response):
+class _AiohttpResponse:
     """Adapter from aiohttp.ClientResponse to google.auth.transport.Response."""
 
-    def __init__(self, status: int, headers: dict, data: bytes):
-        self._status = status
-        self._headers = headers
-        self._data = data
-
-    @property
-    def status(self):
-        return self._status
-
-    @property
-    def headers(self):
-        return self._headers
-
-    @property
-    def data(self):
-        return self._data
+    def __init__(self, status: int, headers: Dict[str, str], data: bytes):
+        self.status = status
+        self.headers = headers
+        self.data = data
 
 
-class _AiohttpRequest(google.auth.transport.Request):
+class _AiohttpRequest:
     """Adapter from aiohttp.ClientSession to google.auth.transport.Request."""
 
     def __init__(self, session: Optional[aiohttp.ClientSession] = None):
         self._session = session
 
     async def __call__(
-        self, url, method="GET", body=None, headers=None, timeout=None, **kwargs
-    ):
+        self,
+        url: str,
+        method: str = "GET",
+        body: Optional[bytes] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[int] = None,
+        **kwargs: Any,
+    ) -> _AiohttpResponse:
         ephemeral = self._session is None
         session = self._session or aiohttp.ClientSession(auto_decompress=False)
         try:
+            client_timeout = aiohttp.ClientTimeout(total=timeout) if timeout else None
             resp = await session.request(
-                method, url, data=body, headers=headers, timeout=timeout
+                method, url, data=body, headers=headers, timeout=client_timeout
             )
             data = await resp.read()
             return _AiohttpResponse(resp.status, dict(resp.headers), data)

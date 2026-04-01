@@ -14,7 +14,7 @@ import sys
 import time
 import traceback
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Awaitable, Callable, List
 from uuid import uuid4
 
 from aiohttp import web
@@ -261,7 +261,8 @@ async def handle_health(request: web.Request) -> web.Response:
 
 @web.middleware
 async def access_log_middleware(
-    request: web.Request, handler: web.RequestHandler
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
 ) -> web.StreamResponse:
     """Middleware that logs requests, skipping /health at INFO level."""
     response = await handler(request)

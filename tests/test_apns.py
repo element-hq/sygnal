@@ -77,7 +77,7 @@ class ApnsTestCase(testutils.TestCase):
             "push_type": "alert",
         }
 
-    def pre_setup(self):
+    def pre_setup(self) -> None:
         """Set up APNs mocks before sygnal init."""
         self.apns_mock_class = patch("sygnal.apnspushkin.APNs").start()
         self.apns_mock = MagicMock()
@@ -88,7 +88,7 @@ class ApnsTestCase(testutils.TestCase):
         # Since no certificate exists, don't try to read it.
         patch("sygnal.apnspushkin.ApnsPushkin._report_certificate_expiration").start()
 
-    def post_setup(self):
+    def post_setup(self) -> None:
         self.apns_pushkin_snotif = MagicMock()
         test_pushkin = self.get_test_pushkin(PUSHKIN_ID)
         test_pushkin_push_type = self.get_test_pushkin(PUSHKIN_ID_WITH_PUSH_TYPE)
@@ -382,7 +382,7 @@ class ApnsTestCase(testutils.TestCase):
         """
 
         # Patch asyncio.sleep so retries don't wait real time
-        async def _instant_sleep(_delay):
+        async def _instant_sleep(_delay: float) -> None:
             pass
 
         patch("sygnal.apnspushkin.asyncio.sleep", _instant_sleep).start()
