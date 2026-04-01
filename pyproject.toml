@@ -38,7 +38,6 @@ sygnal = "sygnal.sygnal:main"
 
 [dependency-groups]
 dev = [
-    "coverage~=5.5",
     "ruff>=0.11",
     "google-auth-stubs==0.2.0",
     "mypy==1.5.1",
@@ -50,6 +49,7 @@ dev = [
     "pytest>=7.0",
     "pytest-asyncio",
     "pytest-aiohttp",
+    "pytest-cov>=5.0",
 ]
 
 [build-system]
