@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs linting scripts over the local Sygnal checkout
-# isort - sorts import statements
-# black - opinionated code formatter
-# ruff - lints and finds mistakes
+# ruff - lints, formats, and sorts imports
 # mypy - type checker
 
 set -e
@@ -81,7 +79,6 @@ else
   # then lint everything!
   if [[ -z ${files+x} ]]; then
     # Lint all source code files and directories
-    # Note: this list aims to mirror the one in tox.ini
     files=(
       "sygnal"
       "tests"
@@ -96,7 +93,6 @@ echo
 # Print out the commands being run
 set -x
 
-isort "${files[@]}"
-python3 -m black "${files[@]}"
-ruff --quiet --fix "${files[@]}"
+ruff check --fix "${files[@]}"
+ruff format "${files[@]}"
 mypy "${files[@]}"
