@@ -6,71 +6,32 @@ this case, the [GNU Affero General Public License v3](LICENSE-AGPL-3.0).
 
 ### Installing dependencies
 
-To contribute to Sygnal, ensure you have Python 3.8 or newer and then run:
-
-Sygnal uses the [poetry](https://python-poetry.org/) project to manage its dependencies
-and development environment. Once you have installed Python 3 and added the
-source, you should install `poetry`.
-Of their installation methods, we recommend
-[installing `poetry` using `pipx`](https://python-poetry.org/docs/#installing-with-pipx),
-
-```shell
-pip install --user pipx
-pipx install poetry
-```
-
-but see poetry's [installation instructions](https://python-poetry.org/docs/#installation)
-for other installation methods.
+Sygnal uses [uv](https://docs.astral.sh/uv/) to manage its dependencies
+and development environment. Once you have installed Python 3.8 or newer,
+install `uv` following the [installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
 
 Next, open a terminal and install dependencies as follows:
 
 ```sh
 cd path/where/you/have/cloned/the/repository
-poetry install
+uv sync
 ```
 
-This will install the runtime and developer dependencies for the project.  Be sure to check
-that the `poetry install` step completed cleanly.
+This will install the runtime and developer dependencies for the project.
 
 ### Run the tests
 
 To make sure everything is working as expected, run the unit tests:
 
 ```bash
-tox -e py
+uv run pytest tests/
 ```
 
-If you see a message like:
-
-```
--------------------------------------------------------------------------------
-Ran 46 tests in 0.209s
-
-PASSED (successes=46)
-___________________________________ summary ___________________________________
-  py: commands succeeded
-  congratulations :)
-```
-
-Then all is well and you're ready to work!
-
-You can also directly run the tests using poetry.
+If you wish to only run *some* unit tests, you may specify a path or use `-k` to
+filter by name:
 
 ```sh
-poetry run trial tests
-```
-
-You can run unit tests in parallel by specifying `-jX` argument to `trial` where `X` is the number of parallel runners you want. To use 4 cpu cores, you would run them like:
-
-```sh
-poetry run trial -j4 tests
-```
-
-If you wish to only run *some* unit tests, you may specify
-another module instead of `tests` - or a test class or a method:
-
-```sh
-poetry run trial tests.test_apns.ApnsTestCase.test_expected
+uv run pytest tests/test_apns.py::ApnsTestCase::test_expected
 ```
 
 ## How to contribute
@@ -106,19 +67,25 @@ Sygnal follows the [Synapse code style].
 Many of the conventions are enforced by scripts which are run as part of the
 [continuous integration system](#continuous-integration-and-testing).
 
-To help check and fix adherence to the code style, you can run `tox`
-locally. You'll need Python 3.8 or later:
+To help check and fix adherence to the code style, you can run the linters
+locally:
 
 ```bash
-# Run the code style check
-tox -e check_codestyle
+# Check code style
+uv run ruff check sygnal/ tests/ stubs
 
-# Run the types check
-tox -e check_types
+# Auto-fix code style issues
+uv run ruff check --fix sygnal/ tests/ stubs
+
+# Check formatting
+uv run ruff format --check sygnal/ tests/ stubs
+
+# Auto-format
+uv run ruff format sygnal/ tests/ stubs
+
+# Check types
+uv run mypy sygnal/ tests/ stubs
 ```
-
-These commands will consider the paths and files related to the project (i.e.
-everything in `sygnal/` and in `tests/` as well as the `setup.py` file).
 
 Before pushing new changes, ensure they don't produce linting errors. Commit any
 files that were corrected.
@@ -127,9 +94,9 @@ Please ensure your changes match the cosmetic style of the existing project,
 and **never** mix cosmetic and functional changes in the same commit, as it
 makes it horribly hard to review otherwise.
 
-## Further information on poetry
+## Further information on uv
 
-See the information provided in the [Synapse docs](https://github.com/element-hq/synapse/blob/master/docs/development/dependencies.md).
+See the [uv documentation](https://docs.astral.sh/uv/) for more details on managing dependencies and virtual environments.
 
 ## Changelog
 
@@ -260,13 +227,13 @@ project; if your change breaks the build, this will be shown in GitHub, with
 links to the build results. If your build fails, please try to fix the errors
 and update your branch.
 
-After installing tox with `pip install tox`, you can use the following to run
-unit tests and lints in a local development environment:
+You can use the following to run unit tests and lints in a local development
+environment:
 
-- `tox -e py38` to run unit tests on Python 3.8.
-- `tox -e check_codestyle` to check code style and formatting.
-- `tox -e check_types` to check types with MyPy.
-- `tox` **to do all of the above.**
+- `uv run pytest tests/` to run unit tests.
+- `uv run ruff check sygnal/ tests/ stubs` to check code style.
+- `uv run ruff format --check sygnal/ tests/ stubs` to check formatting.
+- `uv run mypy sygnal/ tests/ stubs` to check types with MyPy.
 
 ### Testing proxy support
 
