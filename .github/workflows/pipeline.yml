@@ -12,8 +12,8 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - run: uv run ruff check sygnal/ tests/ stubs
-      - run: uv run ruff format --check sygnal/ tests/ stubs
+      - run: uv run ruff check sygnal/ tests/
+      - run: uv run ruff format --check sygnal/ tests/
 
   check-types-mypy:
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - run: uv run mypy sygnal/ tests/ stubs
+      - run: uv run mypy sygnal/ tests/
 
   run-unit-tests:
     name: Unit tests

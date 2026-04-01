@@ -82,7 +82,6 @@ else
     files=(
       "sygnal"
       "tests"
-      "stubs"
     )
   fi
 fi
