@@ -1668,12 +1668,10 @@ dependencies = [
     { name = "opentracing" },
     { name = "prometheus-client" },
     { name = "py-vapid" },
-    { name = "pyopenssl" },
     { name = "pywebpush", version = "2.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pywebpush", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pyyaml" },
     { name = "sentry-sdk" },
-    { name = "service-identity" },
 ]
 
 [package.dev-dependencies]
@@ -1694,7 +1692,6 @@ dev = [
     { name = "towncrier", version = "25.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "types-opentracing", version = "2.4.10.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "types-opentracing", version = "2.4.10.20250622", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "types-pyopenssl" },
     { name = "types-pyyaml", version = "6.0.12.20241230", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "types-pyyaml", version = "6.0.12.20250915", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
@@ -1714,11 +1711,9 @@ requires-dist = [
     { name = "opentracing", specifier = ">=2.2.0" },
     { name = "prometheus-client", specifier = ">=0.7.0,<0.8" },
     { name = "py-vapid", specifier = ">=1.7.0" },
-    { name = "pyopenssl", specifier = ">=17.5.0" },
     { name = "pywebpush", specifier = ">=1.13.0" },
     { name = "pyyaml", specifier = ">=5.1.1" },
     { name = "sentry-sdk", specifier = ">=0.10.2" },
-    { name = "service-identity", specifier = ">=18.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1732,7 +1727,6 @@ dev = [
     { name = "ruff", specifier = ">=0.11" },
     { name = "towncrier", specifier = ">=18.6.0" },
     { name = "types-opentracing", specifier = ">=2.4.2" },
-    { name = "types-pyopenssl", specifier = ">=24.0.0" },
     { name = "types-pyyaml", specifier = ">=6.0.0" },
     { name = "typing-extensions", specifier = ">=3.7.4" },
 ]
@@ -2811,22 +2805,6 @@ wheels = [
 ]
 
 [[package]]
-name = "service-identity"
-version = "24.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "attrs", version = "25.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "attrs", version = "26.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "cryptography" },
-    { name = "pyasn1" },
-    { name = "pyasn1-modules" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/07/a5/dfc752b979067947261dbbf2543470c58efe735c3c1301dd870ef27830ee/service_identity-24.2.0.tar.gz", hash = "sha256:b8683ba13f0d39c6cd5d625d2c5f65421d6d707b013b375c355751557cbe8e09", size = 39245, upload-time = "2024-10-26T07:21:57.736Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/2c/ca6dd598b384bc1ce581e24aaae0f2bed4ccac57749d5c3befbb5e742081/service_identity-24.2.0-py3-none-any.whl", hash = "sha256:6b047fbd8a84fd0bb0d55ebce4031e400562b9196e1e0d3e0fe2b8a59f6d4a85", size = 11364, upload-time = "2024-10-26T07:21:56.302Z" },
-]
-
-[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2988,51 +2966,6 @@ wheels = [
 ]
 
 [[package]]
-name = "types-cffi"
-version = "1.16.0.20241221"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.9'",
-]
-dependencies = [
-    { name = "types-setuptools", version = "75.8.0.20250110", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/00/ecd613293b6c41081b4e5c33bc42ba22a839c493bf8b6ee9480ce3b7a4e8/types_cffi-1.16.0.20241221.tar.gz", hash = "sha256:1c96649618f4b6145f58231acb976e0b448be6b847f7ab733dabe62dfbff6591", size = 15938, upload-time = "2024-12-21T02:41:58.835Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/ec/ebf35741fe824e66a57e7f35199b51021bff3aa4b01a7a2720c7f7668ee8/types_cffi-1.16.0.20241221-py3-none-any.whl", hash = "sha256:e5b76b4211d7a9185f6ab8d06a106d56c7eb80af7cdb8bfcb4186ade10fb112f", size = 19309, upload-time = "2024-12-21T02:41:54.938Z" },
-]
-
-[[package]]
-name = "types-cffi"
-version = "1.17.0.20250915"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.9.*'",
-]
-dependencies = [
-    { name = "types-setuptools", version = "81.0.0.20260209", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/98/ea454cea03e5f351323af6a482c65924f3c26c515efd9090dede58f2b4b6/types_cffi-1.17.0.20250915.tar.gz", hash = "sha256:4362e20368f78dabd5c56bca8004752cc890e07a71605d9e0d9e069dbaac8c06", size = 17229, upload-time = "2025-09-15T03:01:25.31Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/aa/ec/092f2b74b49ec4855cdb53050deb9699f7105b8fda6fe034c0781b8687f3/types_cffi-1.17.0.20250915-py3-none-any.whl", hash = "sha256:cef4af1116c83359c11bb4269283c50f0688e9fc1d7f0eeb390f3661546da52c", size = 20112, upload-time = "2025-09-15T03:01:24.187Z" },
-]
-
-[[package]]
-name = "types-cffi"
-version = "2.0.0.20260316"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.10'",
-]
-dependencies = [
-    { name = "types-setuptools", version = "82.0.0.20260210", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/07/4c/805b40b094eb3fd60f8d17fa7b3c58a33781311a95d0e6a74da0751ce294/types_cffi-2.0.0.20260316.tar.gz", hash = "sha256:8fb06ed4709675c999853689941133affcd2250cd6121cc11fd22c0d81ad510c", size = 17399, upload-time = "2026-03-16T07:54:43.059Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/5e/9f1a709225ad9d0e1d7a6e4366ff285f0113c749e882d6cbeb40eab32e75/types_cffi-2.0.0.20260316-py3-none-any.whl", hash = "sha256:dd504698029db4c580385f679324621cc64d886e6a23e9821d52bc5169251302", size = 20096, upload-time = "2026-03-16T07:54:41.994Z" },
-]
-
-[[package]]
 name = "types-opentracing"
 version = "2.4.10.6"
 source = { registry = "https://pypi.org/simple" }
@@ -3055,21 +2988,6 @@ resolution-markers = [
 sdist = { url = "https://files.pythonhosted.org/packages/43/f9/a6a46bc22cf92179892adfb9510094b9d52a5c903bc190866ac21653584b/types_opentracing-2.4.10.20250622.tar.gz", hash = "sha256:00db48b7f57136c45ac3250218bd0f18b9792566dfcbd5ad1de9f7e180347e74", size = 12424, upload-time = "2025-06-22T03:19:09.828Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/00/67d802e2edfe5c2377fea71ee17b326487f86e53a3a61955142fbf014d8f/types_opentracing-2.4.10.20250622-py3-none-any.whl", hash = "sha256:26bc21f9e385d54898b47e9bd1fa13f200c2dada50394f6eafd063ed53813062", size = 17187, upload-time = "2025-06-22T03:19:08.8Z" },
-]
-
-[[package]]
-name = "types-pyopenssl"
-version = "24.1.0.20240722"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "types-cffi", version = "1.16.0.20241221", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "types-cffi", version = "1.17.0.20250915", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-    { name = "types-cffi", version = "2.0.0.20260316", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/93/29/47a346550fd2020dac9a7a6d033ea03fccb92fa47c726056618cc889745e/types-pyOpenSSL-24.1.0.20240722.tar.gz", hash = "sha256:47913b4678a01d879f503a12044468221ed8576263c1540dcb0484ca21b08c39", size = 8458, upload-time = "2024-07-22T02:32:22.558Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/05/c868a850b6fbb79c26f5f299b768ee0adc1f9816d3461dcf4287916f655b/types_pyOpenSSL-24.1.0.20240722-py3-none-any.whl", hash = "sha256:6a7a5d2ec042537934cfb4c9d4deb0e16c4c6250b09358df1f083682fe6fda54", size = 7499, upload-time = "2024-07-22T02:32:21.232Z" },
 ]
 
 [[package]]
@@ -3140,42 +3058,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/02/5f/2e3dbae6e21be6ae026563bad96cbf76602d73aa85ea09f13419ddbdabb4/types_requests-2.33.0.20260327.tar.gz", hash = "sha256:f4f74f0b44f059e3db420ff17bd1966e3587cdd34062fe38a23cda97868f8dd8", size = 23804, upload-time = "2026-03-27T04:23:38.737Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8c/55/951e733616c92cb96b57554746d2f65f4464d080cc2cc093605f897aba89/types_requests-2.33.0.20260327-py3-none-any.whl", hash = "sha256:fde0712be6d7c9a4d490042d6323115baf872d9a71a22900809d0432de15776e", size = 20737, upload-time = "2026-03-27T04:23:37.813Z" },
-]
-
-[[package]]
-name = "types-setuptools"
-version = "75.8.0.20250110"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.9'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f7/42/5713e90d4f9683f2301d900f33e4fc2405ad8ac224dda30f6cb7f4cd215b/types_setuptools-75.8.0.20250110.tar.gz", hash = "sha256:96f7ec8bbd6e0a54ea180d66ad68ad7a1d7954e7281a710ea2de75e355545271", size = 48185, upload-time = "2025-01-10T02:45:52.085Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/a3/dbfd106751b11c728cec21cc62cbfe7ff7391b935c4b6e8f0bdc2e6fd541/types_setuptools-75.8.0.20250110-py3-none-any.whl", hash = "sha256:a9f12980bbf9bcdc23ecd80755789085bad6bfce4060c2275bc2b4ca9f2bc480", size = 71521, upload-time = "2025-01-10T02:45:49.873Z" },
-]
-
-[[package]]
-name = "types-setuptools"
-version = "81.0.0.20260209"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.9.*'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/57/f1f7992d6d7bded78d1f14dc23d59e87601920852bf10ece2325e49bacae/types_setuptools-81.0.0.20260209.tar.gz", hash = "sha256:2c2eb64499b41b672c387f6f45678a28d20a143a81b45a5c77acbfd4da0df3e1", size = 43201, upload-time = "2026-02-09T04:14:15.505Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/87/90c9143af95850bdaf7eb0d47c59e5c3a8b55fc5a49aca0eb7f98cb964d5/types_setuptools-81.0.0.20260209-py3-none-any.whl", hash = "sha256:4facf71e3f953f8f5ac0020cd6c1b5e493aaff0183e85830bc34870b6abf8475", size = 64194, upload-time = "2026-02-09T04:14:14.278Z" },
-]
-
-[[package]]
-name = "types-setuptools"
-version = "82.0.0.20260210"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.10'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/90/796ac8c774a7f535084aacbaa6b7053d16fff5c630eff87c3ecff7896c37/types_setuptools-82.0.0.20260210.tar.gz", hash = "sha256:d9719fbbeb185254480ade1f25327c4654f8c00efda3fec36823379cebcdee58", size = 44768, upload-time = "2026-02-10T04:22:02.107Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/54/3489432b1d9bc713c9d8aa810296b8f5b0088403662959fb63a8acdbd4fc/types_setuptools-82.0.0.20260210-py3-none-any.whl", hash = "sha256:5124a7daf67f195c6054e0f00f1d97c69caad12fdcf9113eba33eff0bce8cd2b", size = 68433, upload-time = "2026-02-10T04:22:00.876Z" },
 ]
 
 [[package]]

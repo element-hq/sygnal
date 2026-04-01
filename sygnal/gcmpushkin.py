@@ -129,8 +129,9 @@ class _AiohttpRequest(google.auth.transport.Request):
     async def __call__(
         self, url, method="GET", body=None, headers=None, timeout=None, **kwargs
     ):
+        ephemeral = self._session is None
+        session = self._session or aiohttp.ClientSession(auto_decompress=False)
         try:
-            session = self._session or aiohttp.ClientSession(auto_decompress=False)
             resp = await session.request(
                 method, url, data=body, headers=headers, timeout=timeout
             )
@@ -138,6 +139,9 @@ class _AiohttpRequest(google.auth.transport.Request):
             return _AiohttpResponse(resp.status, dict(resp.headers), data)
         except aiohttp.ClientError as exc:
             raise google.auth.exceptions.TransportError(str(exc)) from exc
+        finally:
+            if ephemeral:
+                await session.close()
 
 
 class APIVersion(Enum):
@@ -247,7 +251,13 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
 
             session = aiohttp.ClientSession(trust_env=True, auto_decompress=False)
 
+        self._google_auth_session = session
         self.google_auth_request = _AiohttpRequest(session=session)
+
+    async def close(self) -> None:
+        await self.http_session.close()
+        if self._google_auth_session:
+            await self._google_auth_session.close()
 
     async def _perform_http_request(
         self, body: Dict[str, Any], headers: Dict[str, str]

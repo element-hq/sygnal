@@ -148,6 +148,10 @@ class Pushkin(abc.ABC):
         """
         ...
 
+    async def close(self) -> None:
+        """Clean up resources held by this pushkin. Called during shutdown."""
+        pass
+
     @classmethod
     async def create(cls, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
         """

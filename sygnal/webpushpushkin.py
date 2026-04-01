@@ -116,6 +116,9 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
             raise PushkinSetupException("'vapid_contact_email' not set in config")
         self.ttl = self.get_config("ttl", int, DEFAULT_TTL)
 
+    async def close(self) -> None:
+        await self.http_session.close()
+
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
     ) -> List[str]:

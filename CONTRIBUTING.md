@@ -254,7 +254,7 @@ flag to `git commit`, which uses the name and email set in your
 
 ## Continuous integration and testing
 
-[Buildkite](https://buildkite.com/matrix-dot-org/sygnal) will automatically
+[GitHub Actions](https://github.com/element-hq/sygnal/actions) will automatically
 run a series of checks and tests against any PR which is opened against the
 project; if your change breaks the build, this will be shown in GitHub, with
 links to the build results. If your build fails, please try to fix the errors
