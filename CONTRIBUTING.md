@@ -72,19 +72,19 @@ locally:
 
 ```bash
 # Check code style
-uv run ruff check sygnal/ tests/ stubs
+uv run ruff check sygnal/ tests/
 
 # Auto-fix code style issues
-uv run ruff check --fix sygnal/ tests/ stubs
+uv run ruff check --fix sygnal/ tests/
 
 # Check formatting
-uv run ruff format --check sygnal/ tests/ stubs
+uv run ruff format --check sygnal/ tests/
 
 # Auto-format
-uv run ruff format sygnal/ tests/ stubs
+uv run ruff format sygnal/ tests/
 
 # Check types
-uv run mypy sygnal/ tests/ stubs
+uv run mypy sygnal/ tests/
 ```
 
 Before pushing new changes, ensure they don't produce linting errors. Commit any
@@ -231,9 +231,9 @@ You can use the following to run unit tests and lints in a local development
 environment:
 
 - `uv run pytest tests/` to run unit tests.
-- `uv run ruff check sygnal/ tests/ stubs` to check code style.
-- `uv run ruff format --check sygnal/ tests/ stubs` to check formatting.
-- `uv run mypy sygnal/ tests/ stubs` to check types with MyPy.
+- `uv run ruff check sygnal/ tests/` to check code style.
+- `uv run ruff format --check sygnal/ tests/` to check formatting.
+- `uv run mypy sygnal/ tests/` to check types with MyPy.
 
 ### Testing proxy support
 
