@@ -33,7 +33,7 @@ class TestCase:
         pass
 
     @pytest_asyncio.fixture(autouse=True)
-    async def _setup_sygnal(self, aiohttp_client):
+    async def _setup_sygnal(self, aiohttp_client, tmp_path):
         logging_config = {
             "setup": {
                 "disable_existing_loggers": False,
@@ -62,6 +62,8 @@ class TestCase:
                 "version": 1,
             }
         }
+
+        self.tmp_path = tmp_path
 
         config: Dict[str, Any] = {"apps": {}, "log": logging_config}
         self.config_setup(config)
