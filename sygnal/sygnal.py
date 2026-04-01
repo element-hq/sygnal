@@ -17,7 +17,7 @@ import logging.config
 import os
 import sys
 import traceback
-from typing import Any, Dict, Set
+from typing import Any, Dict, Set, Type
 
 import opentracing
 import prometheus_client
@@ -160,7 +160,7 @@ class Sygnal:
         logger.info("Importing pushkin module: %s", to_import)
         pushkin_module = importlib.import_module(to_import)
         logger.info("Creating pushkin: %s", to_construct)
-        clarse = getattr(pushkin_module, to_construct)
+        clarse: Type[Pushkin] = getattr(pushkin_module, to_construct)
         return await clarse.create(app_name, self, app_config)
 
     async def _start(self) -> None:
@@ -223,7 +223,8 @@ def parse_config() -> Dict[str, Any]:
     print("Using configuration file: %s" % config_path, file=sys.stderr)
     try:
         with open(config_path) as file_handle:
-            return yaml.safe_load(file_handle)
+            config: Dict[str, Any] = yaml.safe_load(file_handle)
+            return config
     except FileNotFoundError:
         logger.critical(
             "Could not find configuration file!\nPath: %s\nAbsolute Path: %s",
