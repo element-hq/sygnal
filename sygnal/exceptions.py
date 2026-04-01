@@ -8,8 +8,6 @@
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 from typing import Optional
 
-from twisted.internet.error import ConnectError
-
 
 class InvalidNotificationException(Exception):
     pass
@@ -46,7 +44,7 @@ class NotificationQuotaDispatchException(Exception):
         self.custom_retry_delay = custom_retry_delay
 
 
-class ProxyConnectError(ConnectError):
+class ProxyConnectError(ConnectionError):
     """
     Exception raised when we are unable to start a connection using a HTTP proxy
     This indicates an issue with the HTTP Proxy in use rather than the final
