@@ -59,6 +59,7 @@ requires = ["uv_build>=0.7,<0.8"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
+module-name = "sygnal"
 module-root = ""
 
 [tool.ruff]
