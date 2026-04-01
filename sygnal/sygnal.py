@@ -257,7 +257,7 @@ def parse_config() -> Dict[str, Any]:
             return yaml.safe_load(file_handle)
     except FileNotFoundError:
         logger.critical(
-            "Could not find configuration file!\n" "Path: %s\n" "Absolute Path: %s",
+            "Could not find configuration file!\nPath: %s\nAbsolute Path: %s",
             config_path,
             os.path.realpath(config_path),
         )
