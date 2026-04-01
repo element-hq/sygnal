@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2017-2025 New Vector Ltd.
 # Copyright 2019, 2020 The Matrix.org Foundation C.I.C.
 # Copyright 2014 Leon Handreke
@@ -14,12 +13,11 @@ import os
 import time
 import warnings
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import google.auth.exceptions
 from google.auth._default_async import load_credentials_from_file
-from google.oauth2._credentials_async import Credentials
 
 # Suppress the DeprecationWarning from AuthorizedSession inheriting
 # aiohttp.ClientSession — it's defined in the module but we don't use it.
@@ -44,6 +42,8 @@ from sygnal.notifications import (
 from sygnal.utils import NotificationLoggerAdapter, json_decoder
 
 if TYPE_CHECKING:
+    from google.oauth2._credentials_async import Credentials
+
     from sygnal.sygnal import Sygnal
 
 QUEUE_TIME_HISTOGRAM = Histogram(
@@ -126,7 +126,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         "send_badge_counts",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
-    def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]) -> None:
+    def __init__(self, name: str, sygnal: "Sygnal", config: dict[str, Any]) -> None:
         super().__init__(name, sygnal, config)
 
         nonunderstood = set(self.cfg.keys()).difference(self.UNDERSTOOD_CONFIG_FIELDS)
@@ -159,11 +159,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         else:
             try:
                 self.api_version = APIVersion(version_str)
-            except ValueError:
+            except ValueError as err:
                 raise PushkinSetupException(
                     "Invalid API version set in config",
                     version_str,
-                )
+                ) from err
 
         if self.api_version is APIVersion.Legacy:
             self.api_key = self.get_config("api_key", str)
@@ -176,7 +176,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 "Must configure `project_id` when using FCM api v1",
             )
 
-        self.credentials: Optional[Credentials] = None
+        self.credentials: Credentials | None = None
 
         if self.api_version is APIVersion.V1:
             self.service_account_file = self.get_config("service_account_file", str)
@@ -191,8 +191,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 )
             except google.auth.exceptions.DefaultCredentialsError as e:
                 raise PushkinSetupException(
-                    f"`service_account_file` must be valid: {str(e)}",
-                )
+                    f"`service_account_file` must be valid: {e!s}",
+                ) from e
 
         # Use the fcm_options config dictionary as a foundation for the body;
         # this lets the Sygnal admin choose custom FCM options
@@ -221,8 +221,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             await self._google_auth_session.close()
 
     async def _perform_http_request(
-        self, body: Dict[str, Any], headers: Dict[str, str]
-    ) -> Tuple[aiohttp.ClientResponse, str]:
+        self, body: dict[str, Any], headers: dict[str, str]
+    ) -> tuple[aiohttp.ClientResponse, str]:
         """
         Perform an HTTP request to the FCM server with the body and headers
         specified.
@@ -235,24 +235,22 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         """
         # we use the semaphore to actually limit the number of concurrent
         # requests, since the connection pool alone does not perform limiting.
-        with QUEUE_TIME_HISTOGRAM.time():
-            with PENDING_REQUESTS_GAUGE.track_inprogress():
-                await self.connection_semaphore.acquire()
+        with QUEUE_TIME_HISTOGRAM.time(), PENDING_REQUESTS_GAUGE.track_inprogress():
+            await self.connection_semaphore.acquire()
 
         url = GCM_URL
         if self.api_version is APIVersion.V1:
             url = GCM_URL_V1.format(ProjectID=self.project_id)
 
         try:
-            with SEND_TIME_HISTOGRAM.time():
-                with ACTIVE_REQUESTS_GAUGE.track_inprogress():
-                    response = await self.http_session.post(
-                        url,
-                        json=body,
-                        headers=headers,
-                        proxy=self.proxy_url,
-                    )
-                    response_text = await response.text()
+            with SEND_TIME_HISTOGRAM.time(), ACTIVE_REQUESTS_GAUGE.track_inprogress():
+                response = await self.http_session.post(
+                    url,
+                    json=body,
+                    headers=headers,
+                    proxy=self.proxy_url,
+                )
+                response_text = await response.text()
         except Exception as exception:
             raise TemporaryNotificationDispatchException(
                 "GCM request failure"
@@ -265,11 +263,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         self,
         n: Notification,
         log: NotificationLoggerAdapter,
-        body: Dict[str, Any],
-        headers: Dict[str, str],
-        pushkeys: List[str],
+        body: dict[str, Any],
+        headers: dict[str, str],
+        pushkeys: list[str],
         span: Span,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         poke_start_time = time.time()
 
         response, response_text = await self._perform_http_request(body, headers)
@@ -311,9 +309,9 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         log: NotificationLoggerAdapter,
         response: aiohttp.ClientResponse,
         response_text: str,
-        pushkeys: List[str],
+        pushkeys: list[str],
         span: Span,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         failed = []
         if 500 <= response.status < 600:
             log.debug("%d from server, waiting to try again", response.status)
@@ -348,8 +346,10 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         elif 200 <= response.status < 300:
             try:
                 resp_object = json_decoder.decode(response_text)
-            except ValueError:
-                raise NotificationDispatchException("Invalid JSON response from GCM.")
+            except ValueError as err:
+                raise NotificationDispatchException(
+                    "Invalid JSON response from GCM."
+                ) from err
             if "results" not in resp_object:
                 log.error(
                     "%d from server but response contained no 'results' key: %r",
@@ -410,9 +410,9 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         log: NotificationLoggerAdapter,
         response: aiohttp.ClientResponse,
         response_text: str,
-        pushkeys: List[str],
+        pushkeys: list[str],
         span: Span,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         if 500 <= response.status < 600:
             log.debug("%d from server, waiting to try again", response.status)
 
@@ -472,11 +472,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         :return: Needed content of the `Authorization` header
         """
         if self.api_version is APIVersion.Legacy:
-            return "key=%s" % (self.api_key,)
+            return f"key={self.api_key}"
         else:
             assert self.credentials is not None
             await self._refresh_credentials()
-            return "Bearer %s" % self.credentials.token
+            return f"Bearer {self.credentials.token}"
 
     async def _refresh_credentials(self) -> None:
         assert self.credentials is not None
@@ -485,7 +485,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
 
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
-    ) -> List[str]:
+    ) -> list[str]:
         log = NotificationLoggerAdapter(logger, {"request_id": context.request_id})
 
         pushkeys: list[str] = []
@@ -518,7 +518,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             "gcm_dispatch", tags=span_tags, child_of=context.opentracing_span
         ) as span_parent:
             # TODO: Implement collapse_key to queue only one message per room.
-            failed: List[str] = []
+            failed: list[str] = []
 
             send_badge_counts = self.get_config("send_badge_counts", bool, True)
             data = GcmPushkin._build_data(
@@ -559,7 +559,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 body = {}
                 body["message"] = new_body
 
-            for retry_number in range(0, MAX_TRIES):
+            for retry_number in range(MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the
                 # event of a failure that warrants a retry.
                 if self.api_version is APIVersion.Legacy:
@@ -635,7 +635,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         device: Device,
         api_version: APIVersion,
         send_badge_counts: bool,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Build the payload data to be sent.
         Args:
@@ -689,22 +689,21 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 elif attr == "content" and current is not None:
                     data["content"] = current
 
-        if api_version is APIVersion.V1:
-            if isinstance(data.get("content"), dict):
-                for attr, value in data["content"].items():
-                    if not isinstance(value, str):
-                        continue
-                    value, truncated = truncate_str(value, MAX_BYTES_PER_FIELD)
-                    if truncated:
-                        overflow_fields += 1
-                    data["content_" + attr] = value
-                del data["content"]
+        if api_version is APIVersion.V1 and isinstance(data.get("content"), dict):
+            for attr, value in data["content"].items():
+                if not isinstance(value, str):
+                    continue
+                value, truncated = truncate_str(value, MAX_BYTES_PER_FIELD)
+                if truncated:
+                    overflow_fields += 1
+                data["content_" + attr] = value
+            del data["content"]
 
         data["prio"] = "high"
         if n.prio == "low":
             data["prio"] = "normal"
 
-        counts: Dict[str, Any] = {}
+        counts: dict[str, Any] = {}
         if send_badge_counts and getattr(n, "counts", None):
             if api_version is APIVersion.Legacy:
                 if n.counts.unread:
@@ -720,7 +719,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         if not data.get("room_id") and not data.get("event_id") and not counts:
             logger.debug(
                 "Notification is badge-only but contains no badge count values. Discarding data. "
-                + "If this is not intended, check the `send_badge_counts` parameter in the config."
+                "If this is not intended, check the `send_badge_counts` parameter in the config."
             )
             return {}
 
@@ -735,7 +734,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         return data
 
 
-def truncate_str(input: str, max_bytes: int) -> Tuple[str, bool]:
+def truncate_str(input: str, max_bytes: int) -> tuple[str, bool]:
     """
     Truncate the given string. If the truncation would occur in the middle of a unicode
     character, that character will be removed entirely instead.

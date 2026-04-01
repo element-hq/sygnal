@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019, 2020 The Matrix.org Foundation C.I.C.
 # Copyright 2017 Vector Creations Ltd.
@@ -14,8 +13,8 @@ import base64
 import copy
 import logging
 import os
-from datetime import timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from datetime import UTC
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import uuid4
 
 import aioapns
@@ -74,9 +73,9 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
     """
 
     # Errors for which the token should be rejected and not reused
-    # See https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/handling_notification_responses_from_apns  # noqa: E501
+    # See https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/handling_notification_responses_from_apns
     # for the full list of possible errors.
-    TOKEN_ERRORS = {
+    TOKEN_ERRORS: ClassVar[set[tuple[int, str]]] = {
         # A client has uploaded an invalid token.
         (400, "BadDeviceToken"),
         # `DeviceTokenNotForTopic` may be due to a token for a different app or an
@@ -108,7 +107,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         "send_badge_counts",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
-    APNS_PUSH_TYPES = {
+    APNS_PUSH_TYPES: ClassVar[dict[str, PushType]] = {
         "alert": PushType.ALERT,
         "background": PushType.BACKGROUND,
         "voip": PushType.VOIP,
@@ -117,7 +116,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         "mdm": PushType.MDM,
     }
 
-    def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]) -> None:
+    def __init__(self, name: str, sygnal: "Sygnal", config: dict[str, Any]) -> None:
         super().__init__(name, sygnal, config)
 
         nonunderstood = set(self.cfg.keys()).difference(self.UNDERSTOOD_CONFIG_FIELDS)
@@ -162,8 +161,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
 
         # use the Sygnal global proxy configuration
         proxy_url_str = sygnal.config.get("proxy")
-        proxy_host: Optional[str] = None
-        proxy_port: Optional[int] = None
+        proxy_host: str | None = None
+        proxy_port: int | None = None
         if proxy_url_str:
             proxy_url = decompose_http_proxy_url(proxy_url_str)
             proxy_host = proxy_url.hostname
@@ -203,7 +202,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         if not push_type:
             self.push_type = None
         else:
-            if push_type not in self.APNS_PUSH_TYPES.keys():
+            if push_type not in self.APNS_PUSH_TYPES:
                 raise PushkinSetupException(f"Invalid value for push_type: {push_type}")
 
             self.push_type = self.APNS_PUSH_TYPES[push_type]
@@ -219,7 +218,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         cert = load_pem_x509_certificate(cert_bytes, default_backend())
         # Report the expiration time as seconds since the epoch (in UTC time).
         CERTIFICATE_EXPIRATION_GAUGE.labels(pushkin=self.name).set(
-            cert.not_valid_after.replace(tzinfo=timezone.utc).timestamp()
+            cert.not_valid_after.replace(tzinfo=UTC).timestamp()
         )
 
     async def _dispatch_request(
@@ -227,10 +226,10 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         log: NotificationLoggerAdapter,
         span: Span,
         device: Device,
-        shaved_payload: Dict[str, Any],
+        shaved_payload: dict[str, Any],
         prio: int,
         notif_id: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Actually attempts to dispatch the notification once.
         """
@@ -252,11 +251,12 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         )
 
         try:
-            with ACTIVE_REQUESTS_GAUGE.track_inprogress():
-                with SEND_TIME_HISTOGRAM.time():
-                    response = await self._send_notification(request)
-        except aioapns.ConnectionError:
-            raise TemporaryNotificationDispatchException("aioapns Connection Failure")
+            with ACTIVE_REQUESTS_GAUGE.track_inprogress(), SEND_TIME_HISTOGRAM.time():
+                response = await self._send_notification(request)
+        except aioapns.ConnectionError as err:
+            raise TemporaryNotificationDispatchException(
+                "aioapns Connection Failure"
+            ) from err
 
         code = int(response.status)
 
@@ -290,13 +290,13 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
 
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
-    ) -> List[str]:
+    ) -> list[str]:
         log = NotificationLoggerAdapter(logger, {"request_id": context.request_id})
 
         # The pushkey is kind of secret because you can use it to send push
         # to someone.
         # span_tags = {"pushkey": device.pushkey}
-        span_tags: Dict[str, int] = {}
+        span_tags: dict[str, int] = {}
 
         with self.sygnal.tracer.start_span(
             "apns_dispatch", tags=span_tags, child_of=context.opentracing_span
@@ -318,7 +318,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
             send_badge_counts = self.get_config("send_badge_counts", bool, True)
 
             if n.event_id and not n.type:
-                payload: Optional[Dict[str, Any]] = self._get_payload_event_id_only(
+                payload: dict[str, Any] | None = self._get_payload_event_id_only(
                     n,
                     default_payload,
                     send_badge_counts,
@@ -387,9 +387,9 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
     def _get_payload_event_id_only(
         self,
         n: Notification,
-        default_payload: Dict[str, Any],
+        default_payload: dict[str, Any],
         send_badge_counts: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Constructs a payload for a notification where we know only the event ID.
         Args:
@@ -424,7 +424,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         device: Device,
         log: NotificationLoggerAdapter,
         send_badge_counts: bool,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Constructs a payload for a notification.
         Args:
@@ -512,23 +512,22 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
 
             loc_args = [from_display]
         elif n.type == "m.room.member":
-            if n.user_is_target:
-                if n.membership == "invite":
-                    if n.room_name:
-                        loc_key = "USER_INVITE_TO_NAMED_ROOM"
-                        loc_args = [
-                            from_display,
-                            n.room_name[0 : self.MAX_FIELD_LENGTH],
-                        ]
-                    elif n.room_alias:
-                        loc_key = "USER_INVITE_TO_NAMED_ROOM"
-                        loc_args = [
-                            from_display,
-                            n.room_alias[0 : self.MAX_FIELD_LENGTH],
-                        ]
-                    else:
-                        loc_key = "USER_INVITE_TO_CHAT"
-                        loc_args = [from_display]
+            if n.user_is_target and n.membership == "invite":
+                if n.room_name:
+                    loc_key = "USER_INVITE_TO_NAMED_ROOM"
+                    loc_args = [
+                        from_display,
+                        n.room_name[0 : self.MAX_FIELD_LENGTH],
+                    ]
+                elif n.room_alias:
+                    loc_key = "USER_INVITE_TO_NAMED_ROOM"
+                    loc_args = [
+                        from_display,
+                        n.room_alias[0 : self.MAX_FIELD_LENGTH],
+                    ]
+                else:
+                    loc_key = "USER_INVITE_TO_CHAT"
+                    loc_args = [from_display]
         elif n.type:
             # A type of message was received that we don't know about
             # but it was important enough for a push to have got to us

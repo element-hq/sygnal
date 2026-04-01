@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2015 OpenMarket Ltd.
 #
@@ -14,7 +13,7 @@
 
 import string
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from sygnal.apnstruncate import json_encode, truncate
 
@@ -51,7 +50,7 @@ def sillystring(length: int, offset: int = 0) -> str:
     return "".join([chars[(i + offset) % len(chars)] for i in range(length)])
 
 
-def payload_for_aps(aps: Dict[str, Any]) -> Dict[str, Any]:
+def payload_for_aps(aps: dict[str, Any]) -> dict[str, Any]:
     """
     Returns the APNS payload for an 'aps' dictionary.
     """

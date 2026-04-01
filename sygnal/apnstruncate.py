@@ -10,20 +10,14 @@
 # Copied and adapted from
 # https://raw.githubusercontent.com/matrix-org/pushbaby/master/pushbaby/truncate.py
 import json
-import sys
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Literal
 
-if TYPE_CHECKING or sys.version_info < (3, 8, 0):
-    from typing_extensions import Literal
-else:
-    from typing import Literal
-
-Choppable = Union[
-    Tuple[Literal["alert", "alert.body"]], Tuple[Literal["alert.loc-args"], int]
-]
+Choppable = (
+    tuple[Literal["alert", "alert.body"]] | tuple[Literal["alert.loc-args"], int]
+)
 
 
-def json_encode(payload: Dict[str, Any]) -> bytes:
+def json_encode(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode()
 
 
@@ -31,7 +25,7 @@ class BodyTooLongException(Exception):
     pass
 
 
-def is_too_long(payload: Dict[Any, Any], max_length: int = 2048) -> bool:
+def is_too_long(payload: dict[Any, Any], max_length: int = 2048) -> bool:
     """
     Returns True if the given payload dictionary is too long for a push.
     Note that the maximum is now 2kB "In iOS 8 and later" although in
@@ -43,7 +37,7 @@ def is_too_long(payload: Dict[Any, Any], max_length: int = 2048) -> bool:
     return len(json_encode(payload)) > max_length
 
 
-def truncate(payload: Dict[str, Any], max_length: int = 2048) -> Dict[str, Any]:
+def truncate(payload: dict[str, Any], max_length: int = 2048) -> dict[str, Any]:
     """
     Truncate APNs fields to make the payload fit within the max length
     specified.
@@ -61,7 +55,7 @@ def truncate(payload: Dict[str, Any], max_length: int = 2048) -> Dict[str, Any]:
     payload = payload.copy()
     if "aps" not in payload:
         if is_too_long(payload, max_length):
-            raise BodyTooLongException()
+            raise BodyTooLongException
         else:
             return payload
     aps = payload["aps"]
@@ -78,7 +72,7 @@ def truncate(payload: Dict[str, Any], max_length: int = 2048) -> Dict[str, Any]:
     while is_too_long(payload, max_length):
         longest = _longest_choppable(aps)
         if longest is None:
-            raise BodyTooLongException()
+            raise BodyTooLongException
 
         txt = _choppable_get(aps, longest)
         # Note that python's support for this is actually broken on some OSes
@@ -90,8 +84,8 @@ def truncate(payload: Dict[str, Any], max_length: int = 2048) -> Dict[str, Any]:
     return payload
 
 
-def _choppables_for_aps(aps: Dict[str, Any]) -> List[Choppable]:
-    ret: List[Choppable] = []
+def _choppables_for_aps(aps: dict[str, Any]) -> list[Choppable]:
+    ret: list[Choppable] = []
     if "alert" not in aps:
         return ret
 
@@ -108,23 +102,20 @@ def _choppables_for_aps(aps: Dict[str, Any]) -> List[Choppable]:
 
 
 def _choppable_get(
-    aps: Dict[str, Any],
+    aps: dict[str, Any],
     choppable: Choppable,
 ) -> str:
-    result: str
     if choppable[0] == "alert":
-        result = aps["alert"]
+        return aps["alert"]
     elif choppable[0] == "alert.body":
-        result = aps["alert"]["body"]
+        return aps["alert"]["body"]
     elif choppable[0] == "alert.loc-args":
-        result = aps["alert"]["loc-args"][choppable[1]]
-    else:
-        raise ValueError(f"Unknown choppable: {choppable[0]}")
-    return result
+        return aps["alert"]["loc-args"][choppable[1]]
+    raise ValueError(f"Unknown choppable: {choppable[0]}")
 
 
 def _choppable_put(
-    aps: Dict[str, Any],
+    aps: dict[str, Any],
     choppable: Choppable,
     val: str,
 ) -> None:
@@ -136,7 +127,7 @@ def _choppable_put(
         aps["alert"]["loc-args"][choppable[1]] = val
 
 
-def _longest_choppable(aps: Dict[str, Any]) -> Optional[Choppable]:
+def _longest_choppable(aps: dict[str, Any]) -> Choppable | None:
     longest = None
     length_of_longest = 0
     for c in _choppables_for_aps(aps):
