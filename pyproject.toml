@@ -65,9 +65,21 @@ select = [
     "F",    # pyflakes
     "W",    # pycodestyle warnings
     "I",    # isort
+    "UP",   # pyupgrade (modernize syntax for target Python version)
+    "B",    # bugbear (common bugs and design problems)
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+    "PIE",  # flake8-pie (misc lints)
+    "RSE",  # flake8-raise
+    "G",    # flake8-logging-format
+    "PERF", # perflint
+    "TC",   # flake8-type-checking
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
+    "E501",    # line too long (handled by formatter)
+    "SIM300",  # yoda conditions (style preference)
+    "PERF203", # try-except in loop (these are intentional error handling)
 ]
 
 [tool.ruff.lint.isort]
