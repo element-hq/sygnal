@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019 The Matrix.org Foundation C.I.C.
 #
@@ -7,7 +6,7 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from aioapns.common import NotificationResult, PushType
@@ -63,7 +62,7 @@ class ApnsTestCase(testutils.TestCase):
         assert isinstance(test_pushkin, ApnsPushkin)
         return test_pushkin
 
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         super().config_setup(config)
         config["apps"][PUSHKIN_ID] = {"type": "apns", "certfile": TEST_CERTFILE_PATH}
         config["apps"][PUSHKIN_ID_WITHOUT_BADGES] = {

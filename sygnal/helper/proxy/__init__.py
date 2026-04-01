@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2020 The Matrix.org Foundation C.I.C.
 #
@@ -7,7 +6,7 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple
 from urllib.parse import urlparse
 
 """
@@ -17,10 +16,12 @@ from urllib.parse import urlparse
     port is always an integer; a default port number used if necessary.
     credentials is None or a tuple of (username, password) strings.
 """
-HttpProxyUrl = NamedTuple(
-    "HttpProxyUrl",
-    [("hostname", str), ("port", int), ("credentials", Optional[Tuple[str, str]])],
-)
+
+
+class HttpProxyUrl(NamedTuple):
+    hostname: str
+    port: int
+    credentials: tuple[str, str] | None
 
 
 def decompose_http_proxy_url(proxy_url: str) -> HttpProxyUrl:

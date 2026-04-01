@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019, 2020 The Matrix.org Foundation C.I.C.
 # Copyright 2018, 2019 New Vector Ltd.
@@ -16,7 +15,7 @@ import logging
 import logging.config
 import os
 import sys
-from typing import Any, Dict, Set, Type
+from typing import Any
 
 import opentracing
 import prometheus_client
@@ -30,7 +29,7 @@ from sygnal.notifications import Pushkin
 
 logger = logging.getLogger(__name__)
 
-CONFIG_DEFAULTS: Dict[str, Any] = {
+CONFIG_DEFAULTS: dict[str, Any] = {
     "http": {"port": 5000, "bind_addresses": ["127.0.0.1"]},
     "log": {"setup": {}, "access": {"x_forwarded_for": False}},
     "metrics": {
@@ -51,7 +50,7 @@ CONFIG_DEFAULTS: Dict[str, Any] = {
 class Sygnal:
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         tracer: Tracer = opentracing.tracer,
     ):
         """
@@ -61,7 +60,7 @@ class Sygnal:
             tracer (optional): an OpenTracing tracer. The default is the no-op tracer.
         """
         self.config = config
-        self.pushkins: Dict[str, Pushkin] = {}
+        self.pushkins: dict[str, Pushkin] = {}
         self.tracer = tracer
 
         logging_dict_config = config["log"]["setup"]
@@ -137,7 +136,7 @@ class Sygnal:
                     "Unknown OpenTracing implementation: %s.", tracecfg["impl"]
                 )
 
-    async def _make_pushkin(self, app_name: str, app_config: Dict[str, Any]) -> Pushkin:
+    async def _make_pushkin(self, app_name: str, app_config: dict[str, Any]) -> Pushkin:
         """
         Load and instantiate a pushkin.
         Args:
@@ -159,7 +158,7 @@ class Sygnal:
         logger.info("Importing pushkin module: %s", to_import)
         pushkin_module = importlib.import_module(to_import)
         logger.info("Creating pushkin: %s", to_construct)
-        clarse: Type[Pushkin] = getattr(pushkin_module, to_construct)
+        clarse: type[Pushkin] = getattr(pushkin_module, to_construct)
         return await clarse.create(app_name, self, app_config)
 
     async def _start(self) -> None:
@@ -169,7 +168,8 @@ class Sygnal:
                 self.pushkins[app_id] = await self._make_pushkin(app_id, app_cfg)
             except Exception:
                 logger.error(
-                    "Failed to load and create pushkin for kind '%s'" % app_cfg["type"]
+                    "Failed to load and create pushkin for kind '%s'",
+                    app_cfg["type"],
                 )
                 raise
 
@@ -208,17 +208,17 @@ class Sygnal:
         asyncio.run(self._start())
 
 
-def parse_config() -> Dict[str, Any]:
+def parse_config() -> dict[str, Any]:
     """
     Find and load Sygnal's configuration file.
     Returns:
         A loaded configuration.
     """
     config_path = os.getenv("SYGNAL_CONF", "sygnal.yaml")
-    print("Using configuration file: %s" % config_path, file=sys.stderr)
+    print(f"Using configuration file: {config_path}", file=sys.stderr)
     try:
         with open(config_path) as file_handle:
-            config: Dict[str, Any] = yaml.safe_load(file_handle)
+            config: dict[str, Any] = yaml.safe_load(file_handle)
             return config
     except FileNotFoundError:
         logger.critical(
@@ -229,7 +229,7 @@ def parse_config() -> Dict[str, Any]:
         raise
 
 
-def check_config(config: Dict[str, Any]) -> None:
+def check_config(config: dict[str, Any]) -> None:
     """
     Lightly check the configuration and issue warnings as appropriate.
     Args:
@@ -238,13 +238,13 @@ def check_config(config: Dict[str, Any]) -> None:
     UNDERSTOOD_CONFIG_FIELDS = CONFIG_DEFAULTS.keys()
 
     def check_section(
-        section_name: str, known_keys: Set[str], cfgpart: Dict[str, Any] = config
+        section_name: str, known_keys: set[str], cfgpart: dict[str, Any] = config
     ) -> None:
         nonunderstood = set(cfgpart[section_name].keys()).difference(known_keys)
         if len(nonunderstood) > 0:
             logger.warning(
-                f"The following configuration fields in '{section_name}' "
-                f"are not understood: %s",
+                "The following configuration fields in '%s' are not understood: %s",
+                section_name,
                 nonunderstood,
             )
 
@@ -272,8 +272,8 @@ def check_config(config: Dict[str, Any]) -> None:
 
 
 def merge_left_with_defaults(
-    defaults: Dict[str, Any], loaded_config: Dict[str, Any]
-) -> Dict[str, Any]:
+    defaults: dict[str, Any], loaded_config: dict[str, Any]
+) -> dict[str, Any]:
     """
     Merge two configurations, with one of them overriding the other.
     Args:
