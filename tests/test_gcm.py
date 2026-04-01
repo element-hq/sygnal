@@ -12,11 +12,11 @@ import tempfile
 from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Tuple
 from unittest.mock import MagicMock
 
-from sygnal.exceptions import TemporaryNotificationDispatchException
-from sygnal.gcmpushkin import APIVersion, GcmPushkin
-
 from tests import testutils
 from tests.testutils import DummyResponse
+
+from sygnal.exceptions import TemporaryNotificationDispatchException
+from sygnal.gcmpushkin import APIVersion, GcmPushkin
 
 if TYPE_CHECKING:
     from sygnal.sygnal import Sygnal

@@ -16,6 +16,7 @@ from typing import BinaryIO, Dict, List, Optional, Union
 import attr
 import twisted
 from incremental import Version
+from tests.asyncio_test_helpers import TimelessEventLoopWrapper
 from twisted.internet._resolver import SimpleResolverComplexifier
 from twisted.internet.defer import ensureDeferred, fail, succeed
 from twisted.internet.error import DNSLookupError
@@ -27,8 +28,6 @@ from twisted.web.server import Request
 from zope.interface.declarations import implementer
 
 from sygnal.sygnal import CONFIG_DEFAULTS, Sygnal, merge_left_with_defaults
-
-from tests.asyncio_test_helpers import TimelessEventLoopWrapper
 
 REQ_PATH = b"/_matrix/push/v1/notify"
 

@@ -11,6 +11,12 @@ import logging
 
 import twisted
 from incremental import Version
+from tests.testutils import TestCase
+from tests.twisted_test_helpers import (
+    FakeTransport,
+    TestServerTLSConnectionFactory,
+    get_test_https_policy,
+)
 from twisted.internet import interfaces  # noqa: F401
 from twisted.internet.protocol import Factory
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -18,13 +24,6 @@ from twisted.web.client import readBody
 from twisted.web.http import HTTPChannel
 
 from sygnal.helper.proxy.proxyagent_twisted import ProxyAgent
-
-from tests.testutils import TestCase
-from tests.twisted_test_helpers import (
-    FakeTransport,
-    TestServerTLSConnectionFactory,
-    get_test_https_policy,
-)
 
 logger = logging.getLogger(__name__)
 

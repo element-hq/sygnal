@@ -9,6 +9,7 @@
 
 from typing import Any, Dict, List
 
+from tests import testutils
 from twisted.internet.address import IPv6Address
 from twisted.internet.testing import StringTransport
 
@@ -17,8 +18,6 @@ from sygnal.exceptions import (
     TemporaryNotificationDispatchException,
 )
 from sygnal.notifications import Device, Notification, NotificationContext, Pushkin
-
-from tests import testutils
 
 DEVICE_RAISE_EXCEPTION = {
     "app_id": "com.example.spqr",

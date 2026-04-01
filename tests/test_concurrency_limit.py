@@ -9,6 +9,8 @@
 
 from typing import Any, Dict, List
 
+from tests.testutils import TestCase
+
 from sygnal.notifications import (
     ConcurrencyLimitedPushkin,
     Device,
@@ -16,8 +18,6 @@ from sygnal.notifications import (
     NotificationContext,
 )
 from sygnal.utils import twisted_sleep
-
-from tests.testutils import TestCase
 
 DEVICE_GCM1_EXAMPLE = {
     "app_id": "com.example.gcm",

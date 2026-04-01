@@ -10,10 +10,9 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 from aioapns.common import NotificationResult
+from tests import testutils
 
 from sygnal.apnspushkin import ApnsPushkin
-
-from tests import testutils
 
 PUSHKIN_ID_1 = "com.example.apns"
 PUSHKIN_ID_2 = "*.example.*"

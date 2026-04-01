@@ -12,9 +12,6 @@ import ssl
 from asyncio import AbstractEventLoop, BaseTransport, Protocol, Task
 from typing import Optional, Tuple, cast
 
-from sygnal.exceptions import ProxyConnectError
-from sygnal.helper.proxy.proxy_asyncio import HttpConnectProtocol
-
 from tests import testutils
 from tests.asyncio_test_helpers import (
     EchoProtocol,
@@ -27,6 +24,9 @@ from tests.twisted_test_helpers import (
     get_test_ca_cert_file,
     get_test_key_file,
 )
+
+from sygnal.exceptions import ProxyConnectError
+from sygnal.helper.proxy.proxy_asyncio import HttpConnectProtocol
 
 
 class AsyncioHttpProxyTest(testutils.TestCase):

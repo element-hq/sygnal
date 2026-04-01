@@ -47,7 +47,7 @@ def sillystring(length: int, offset: int = 0) -> str:
     Returns:
         A string formed of weird and wonderful UTF-8 emoji characters.
     """
-    chars = ["\U0001F430", "\U0001F431", "\U0001F432", "\U0001F433"]
+    chars = ["\U0001f430", "\U0001f431", "\U0001f432", "\U0001f433"]
     return "".join([chars[(i + offset) % len(chars)] for i in range(length)])
 
 
@@ -135,7 +135,7 @@ class TruncateTestCase(unittest.TestCase):
             I have no great desire to manually parse UTF-8 to work around this since
             it works fine on Linux.
         """
-        if len("\U0001F430") != 1:
+        if len("\U0001f430") != 1:
             msg = (
                 "Unicode support is broken in your Python binary. "
                 + "Truncating messages with multibyte unicode characters will fail."
@@ -148,7 +148,7 @@ class TruncateTestCase(unittest.TestCase):
         multibyte character.
         """
         overhead = len(json_encode(payload_for_aps({"alert": ""})))
-        txt = "\U0001F430" + simplestring(30)
+        txt = "\U0001f430" + simplestring(30)
         aps = {"alert": txt}
         # NB. The number of characters of the string we get is dependent
         # on the json encoding used.

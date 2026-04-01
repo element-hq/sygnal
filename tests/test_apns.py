@@ -11,11 +11,10 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 from aioapns.common import NotificationResult, PushType
+from tests import testutils
 
 from sygnal import apnstruncate
 from sygnal.apnspushkin import ApnsPushkin
-
-from tests import testutils
 
 PUSHKIN_ID = "com.example.apns"
 PUSHKIN_ID_WITHOUT_BADGES = "com.example.apns.disable_badges"
