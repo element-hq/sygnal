@@ -380,6 +380,7 @@ class ApnsTestCase(testutils.TestCase):
         Test that we DO retry when we get a 5xx error and do not mark as
         rejected.
         """
+
         # Patch asyncio.sleep so retries don't wait real time
         async def _instant_sleep(_delay):
             pass

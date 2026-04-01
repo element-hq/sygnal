@@ -48,7 +48,7 @@ DEVICE_ACCEPTED = {
 }
 
 
-class TestPushkin(Pushkin):
+class StubPushkin(Pushkin):
     """
     A synthetic Pushkin with simple rules.
     """
@@ -72,11 +72,11 @@ class TestPushkin(Pushkin):
 class PushGatewayApiV1TestCase(testutils.TestCase):
     def config_setup(self, config: Dict[str, Any]) -> None:
         """
-        Set up a TestPushkin for the test.
+        Set up a StubPushkin for the test.
         """
         super().config_setup(config)
         config["apps"]["com.example.spqr"] = {
-            "type": "tests.test_pushgateway_api_v1.TestPushkin"
+            "type": "tests.test_pushgateway_api_v1.StubPushkin"
         }
 
     async def test_good_requests_give_200(self) -> None:

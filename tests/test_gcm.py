@@ -76,7 +76,7 @@ DEVICE_EXAMPLE_IOS = {
 }
 
 
-class TestCredentials:
+class StubCredentials:
     def __init__(self) -> None:
         self.valid = False
 
@@ -91,7 +91,7 @@ class TestCredentials:
         self.valid = True
 
 
-class TestGcmPushkin(GcmPushkin):
+class StubGcmPushkin(GcmPushkin):
     """
     A GCM pushkin with the ability to make HTTP requests removed and instead
     can be preloaded with virtual requests.
@@ -105,7 +105,7 @@ class TestGcmPushkin(GcmPushkin):
         self.last_request_headers: Dict[str, str] = {}
         self.num_requests = 0
         if self.api_version is APIVersion.V1:
-            self.credentials = TestCredentials()  # type: ignore[assignment]
+            self.credentials = StubCredentials()  # type: ignore[assignment]
 
     def preload_with_response(
         self, code: int, response_payload: Dict[str, Any]
@@ -150,17 +150,17 @@ FAKE_SERVICE_ACCOUNT_FILE = b"""
 class GcmTestCase(testutils.TestCase):
     def config_setup(self, config: Dict[str, Any]) -> None:
         config["apps"]["com.example.gcm"] = {
-            "type": "tests.test_gcm.TestGcmPushkin",
+            "type": "tests.test_gcm.StubGcmPushkin",
             "api_key": "kii",
             "api_version": "legacy",
         }
         config["apps"]["com.example.gcm.ios"] = {
-            "type": "tests.test_gcm.TestGcmPushkin",
+            "type": "tests.test_gcm.StubGcmPushkin",
             "api_key": "kii",
             "fcm_options": {"content_available": True, "mutable_content": True},
         }
         config["apps"]["fcm-with-disabled-badge-count"] = {
-            "type": "tests.test_gcm.TestGcmPushkin",
+            "type": "tests.test_gcm.StubGcmPushkin",
             "api_key": "kii",
             "fcm_options": {"content_available": True, "mutable_content": True},
             # This pusher is specifically testing that this field is `False`.
@@ -170,7 +170,7 @@ class GcmTestCase(testutils.TestCase):
         self.service_account_file.write(FAKE_SERVICE_ACCOUNT_FILE)
         self.service_account_file.flush()
         config["apps"]["com.example.gcm.apiv1"] = {
-            "type": "tests.test_gcm.TestGcmPushkin",
+            "type": "tests.test_gcm.StubGcmPushkin",
             "api_version": "v1",
             "project_id": "example_project",
             "service_account_file": self.service_account_file.name,
@@ -195,7 +195,7 @@ class GcmTestCase(testutils.TestCase):
         }
 
         config["apps"]["com.example.gcm.apiv1.disabled-badges"] = {
-            "type": "tests.test_gcm.TestGcmPushkin",
+            "type": "tests.test_gcm.StubGcmPushkin",
             "api_version": "v1",
             "project_id": "example_project",
             "service_account_file": self.service_account_file.name,
@@ -220,9 +220,9 @@ class GcmTestCase(testutils.TestCase):
             },
         }
 
-    def get_test_pushkin(self, name: str) -> TestGcmPushkin:
+    def get_test_pushkin(self, name: str) -> StubGcmPushkin:
         pushkin = self.sygnal.pushkins[name]
-        assert isinstance(pushkin, TestGcmPushkin)
+        assert isinstance(pushkin, StubGcmPushkin)
         return pushkin
 
     async def test_expected(self) -> None:
@@ -483,6 +483,7 @@ class GcmTestCase(testutils.TestCase):
         Also checks the notification message to ensure it is sane after retrying
         multiple times.
         """
+
         # Patch asyncio.sleep so retries don't wait real time
         async def _instant_sleep(_delay):
             pass
