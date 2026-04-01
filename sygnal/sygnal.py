@@ -9,35 +9,25 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
+import asyncio
 import copy
 import importlib
 import logging
 import logging.config
 import os
 import sys
-from typing import Any, Dict, Set, cast
+import traceback
+from typing import Any, Dict, Set
 
 import opentracing
 import prometheus_client
 import yaml
+from aiohttp import web
 from opentracing import Tracer
 from opentracing.scope_managers.asyncio import AsyncioScopeManager
-from twisted.internet import asyncioreactor
-from twisted.internet.defer import ensureDeferred
-from twisted.internet.interfaces import (
-    IReactorCore,
-    IReactorFDSet,
-    IReactorPluggableNameResolver,
-    IReactorTCP,
-    IReactorTime,
-)
-from twisted.python import log as twisted_log
-from twisted.python.failure import Failure
-from zope.interface import Interface
 
-from sygnal.http import PushGatewayApiServer
+from sygnal.http import create_app
 from sygnal.notifications import Pushkin
-from sygnal.utils import twisted_sleep
 
 logger = logging.getLogger(__name__)
 
@@ -59,33 +49,19 @@ CONFIG_DEFAULTS: Dict[str, Any] = {
 }
 
 
-class SygnalReactor(
-    IReactorFDSet,
-    IReactorPluggableNameResolver,
-    IReactorTCP,
-    IReactorCore,
-    IReactorTime,
-    Interface,
-):
-    pass
-
-
 class Sygnal:
     def __init__(
         self,
         config: Dict[str, Any],
-        custom_reactor: SygnalReactor,
         tracer: Tracer = opentracing.tracer,
     ):
         """
         Object that holds state for the entirety of a Sygnal instance.
         Args:
             config: Configuration for this Sygnal
-            custom_reactor: a Twisted Reactor to use.
             tracer (optional): an OpenTracing tracer. The default is the no-op tracer.
         """
         self.config = config
-        self.reactor = custom_reactor
         self.pushkins: Dict[str, Pushkin] = {}
         self.tracer = tracer
 
@@ -93,9 +69,6 @@ class Sygnal:
         logging.config.dictConfig(logging_dict_config)
 
         logger.debug("Started logging")
-
-        observer = twisted_log.PythonLoggingObserver()
-        observer.start()
 
         proxy_url = config.get("proxy")
         if proxy_url is not None:
@@ -190,7 +163,8 @@ class Sygnal:
         clarse = getattr(pushkin_module, to_construct)
         return await clarse.create(app_name, self, app_config)
 
-    async def make_pushkins_then_start(self) -> None:
+    async def _start(self) -> None:
+        """Create pushkins and start the HTTP server."""
         for app_id, app_cfg in self.config["apps"].items():
             try:
                 self.pushkins[app_id] = await self._make_pushkin(app_id, app_cfg)
@@ -207,41 +181,34 @@ class Sygnal:
 
         logger.info("Configured with app IDs: %r", self.pushkins.keys())
 
-        pushgateway_api = PushGatewayApiServer(self)
+        app = create_app(self)
+        runner = web.AppRunner(app)
+        await runner.setup()
+
         port = int(self.config["http"]["port"])
         for interface in self.config["http"]["bind_addresses"]:
             logger.info("Starting listening on %s port %d", interface, port)
-            self.reactor.listenTCP(port, pushgateway_api.site, 50, interface=interface)
+            site = web.TCPSite(runner, interface, port)
+            await site.start()
+
+        # Wait forever (until cancelled)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await runner.cleanup()
 
     def run(self) -> None:
         """
         Attempt to run Sygnal and then exit the application.
         """
-
-        async def start():
-            # NOTE: This sleep may seem odd to you, but it is in fact necessary.
-            # Without this sleep, the code following it will run before Twisted has had
-            # a chance to fully setup the asyncio event loop.
-            # Specifically, `callWhenRunning` runs the functions
-            # before the asyncio event loop has started running.
-            # ie. asyncio.get_running_loop() will throw because of no running loop.
-            # Calling twisted_sleep is enough to kickstart Twisted into setting up the
-            # asyncio event loop for future usage.
-            await twisted_sleep(0, self.reactor)
-            try:
-                await self.make_pushkins_then_start()
-            except Exception:
-                # Print the exception and bail out.
-                print("Error during startup:", file=sys.stderr)
-
-                # this gives better tracebacks than traceback.print_exc()
-                Failure().printTraceback(file=sys.stderr)
-
-                if self.reactor.running:
-                    self.reactor.stop()
-
-        self.reactor.callWhenRunning(lambda: ensureDeferred(start()))
-        self.reactor.run()
+        try:
+            asyncio.run(self._start())
+        except KeyboardInterrupt:
+            pass
+        except Exception:
+            print("Error during startup:", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            sys.exit(1)
 
 
 def parse_config() -> Dict[str, Any]:
@@ -342,23 +309,10 @@ def merge_left_with_defaults(
 
 
 def main() -> None:
-    # TODO we don't want to have to install the reactor, when we can get away with
-    #   it
-    asyncioreactor.install()
-
-    # we remove the global reactor to make it evident when it has accidentally
-    # been used:
-    # ! twisted.internet.reactor = None
-    # TODO can't do this ^ yet, since twisted.internet.task.{coiterate,cooperate}
-    #   (indirectly) depend on the globally-installed reactor and there's no way
-    #   to pass in a custom one.
-    #   and twisted.web.client uses twisted.internet.task.cooperate
-
     config = parse_config()
     config = merge_left_with_defaults(CONFIG_DEFAULTS, config)
     check_config(config)
-    custom_reactor = cast(SygnalReactor, asyncioreactor.AsyncioSelectorReactor())
-    sygnal = Sygnal(config, custom_reactor)
+    sygnal = Sygnal(config)
     sygnal.run()
 
 

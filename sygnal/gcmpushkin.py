@@ -9,13 +9,11 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import asyncio
-import json
 import logging
 import os
 import time
 from enum import Enum
-from io import BytesIO
-from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 # We are using an unstable async google-auth API, but it's there since 3+ years
 # https://github.com/googleapis/google-auth-library-python/issues/613
@@ -25,10 +23,6 @@ from google.auth._default_async import load_credentials_from_file
 from google.oauth2._credentials_async import Credentials
 from opentracing import Span, logs, tags
 from prometheus_client import Counter, Gauge, Histogram
-from twisted.internet.defer import Deferred, DeferredSemaphore
-from twisted.web.client import FileBodyProducer, HTTPConnectionPool, readBody
-from twisted.web.http_headers import Headers
-from twisted.web.iweb import IResponse
 
 from sygnal.exceptions import (
     NotificationDispatchException,
@@ -36,15 +30,13 @@ from sygnal.exceptions import (
     PushkinSetupException,
     TemporaryNotificationDispatchException,
 )
-from sygnal.helper.context_factory import ClientTLSOptionsFactory
-from sygnal.helper.proxy.proxyagent_twisted import ProxyAgent
 from sygnal.notifications import (
     ConcurrencyLimitedPushkin,
     Device,
     Notification,
     NotificationContext,
 )
-from sygnal.utils import NotificationLoggerAdapter, json_decoder, twisted_sleep
+from sygnal.utils import NotificationLoggerAdapter, json_decoder
 
 if TYPE_CHECKING:
     from sygnal.sygnal import Sygnal
@@ -73,7 +65,7 @@ RESPONSE_STATUS_CODES_COUNTER = Counter(
 
 logger = logging.getLogger(__name__)
 
-GCM_URL = b"https://fcm.googleapis.com/fcm/send"
+GCM_URL = "https://fcm.googleapis.com/fcm/send"
 GCM_URL_V1 = "https://fcm.googleapis.com/v1/projects/{ProjectID}/messages:send"
 MAX_TRIES = 3
 RETRY_DELAY_BASE = 10
@@ -139,24 +131,17 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 nonunderstood,
             )
 
-        self.http_pool = HTTPConnectionPool(reactor=sygnal.reactor)
         self.max_connections = self.get_config(
             "max_connections", int, DEFAULT_MAX_CONNECTIONS
         )
 
-        self.connection_semaphore = DeferredSemaphore(self.max_connections)
-        self.http_pool.maxPersistentPerHost = self.max_connections
-
-        tls_client_options_factory = ClientTLSOptionsFactory()
+        self.connection_semaphore = asyncio.Semaphore(self.max_connections)
 
         # use the Sygnal global proxy configuration
-        proxy_url = sygnal.config.get("proxy")
+        self.proxy_url = sygnal.config.get("proxy")
 
-        self.http_agent = ProxyAgent(
-            reactor=sygnal.reactor,
-            pool=self.http_pool,
-            contextFactory=tls_client_options_factory,
-            proxy_url_str=proxy_url,
+        self.http_session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=self.max_connections),
         )
 
         self.api_version = APIVersion.Legacy
@@ -227,8 +212,8 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         )
 
     async def _perform_http_request(
-        self, body: Dict[str, Any], headers: Dict[AnyStr, List[AnyStr]]
-    ) -> Tuple[IResponse, str]:
+        self, body: Dict[str, Any], headers: Dict[str, str]
+    ) -> Tuple[aiohttp.ClientResponse, str]:
         """
         Perform an HTTP request to the FCM server with the body and headers
         specified.
@@ -237,31 +222,28 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             headers: HTTP Headers.
 
         Returns:
-
+            Tuple of (response, response_text).
         """
-        body_producer = FileBodyProducer(BytesIO(json.dumps(body).encode()))
-
         # we use the semaphore to actually limit the number of concurrent
-        # requests, since the HTTPConnectionPool will actually just lead to more
-        # requests being created but not pooled – it does not perform limiting.
+        # requests, since the connection pool alone does not perform limiting.
         with QUEUE_TIME_HISTOGRAM.time():
             with PENDING_REQUESTS_GAUGE.track_inprogress():
                 await self.connection_semaphore.acquire()
 
         url = GCM_URL
         if self.api_version is APIVersion.V1:
-            url = str.encode(GCM_URL_V1.format(ProjectID=self.project_id))
+            url = GCM_URL_V1.format(ProjectID=self.project_id)
 
         try:
             with SEND_TIME_HISTOGRAM.time():
                 with ACTIVE_REQUESTS_GAUGE.track_inprogress():
-                    response = await self.http_agent.request(
-                        b"POST",
+                    response = await self.http_session.post(
                         url,
-                        headers=Headers(headers),
-                        bodyProducer=body_producer,
+                        json=body,
+                        headers=headers,
+                        proxy=self.proxy_url,
                     )
-                    response_text = (await readBody(response)).decode()
+                    response_text = await response.text()
         except Exception as exception:
             raise TemporaryNotificationDispatchException(
                 "GCM request failure"
@@ -275,7 +257,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         n: Notification,
         log: NotificationLoggerAdapter,
         body: Dict[str, Any],
-        headers: Dict[AnyStr, List[AnyStr]],
+        headers: Dict[str, str],
         pushkeys: List[str],
         span: Span,
     ) -> Tuple[List[str], List[str]]:
@@ -284,12 +266,12 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         response, response_text = await self._perform_http_request(body, headers)
 
         RESPONSE_STATUS_CODES_COUNTER.labels(
-            pushkin=self.name, code=response.code
+            pushkin=self.name, code=response.status
         ).inc()
 
         log.debug("GCM request took %f seconds", time.time() - poke_start_time)
 
-        span.set_tag(tags.HTTP_STATUS_CODE, response.code)
+        span.set_tag(tags.HTTP_STATUS_CODE, response.status)
 
         if self.api_version is APIVersion.Legacy:
             return self._handle_legacy_response(
@@ -318,45 +300,43 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         self,
         n: Notification,
         log: NotificationLoggerAdapter,
-        response: IResponse,
+        response: aiohttp.ClientResponse,
         response_text: str,
         pushkeys: List[str],
         span: Span,
     ) -> Tuple[List[str], List[str]]:
         failed = []
-        if 500 <= response.code < 600:
-            log.debug("%d from server, waiting to try again", response.code)
+        if 500 <= response.status < 600:
+            log.debug("%d from server, waiting to try again", response.status)
 
             retry_after = None
 
-            for header_value in response.headers.getRawHeaders(
-                b"retry-after", default=[]
-            ):
+            for header_value in response.headers.getall("Retry-After", []):
                 retry_after = int(header_value)
                 span.log_kv({"event": "gcm_retry_after", "retry_after": retry_after})
 
             raise TemporaryNotificationDispatchException(
                 "GCM server error, hopefully temporary.", custom_retry_delay=retry_after
             )
-        elif response.code == 400:
+        elif response.status == 400:
             log.error(
                 "%d from server, we have sent something invalid! Error: %r",
-                response.code,
+                response.status,
                 response_text,
             )
             # permanent failure: give up
             raise NotificationDispatchException("Invalid request")
-        elif response.code == 401:
+        elif response.status == 401:
             log.error(
                 "401 from server! Our API key is invalid? Error: %r", response_text
             )
             # permanent failure: give up
             raise NotificationDispatchException("Not authorised to push")
-        elif response.code == 404:
+        elif response.status == 404:
             # assume they're all failed
             log.info("Reg IDs %r get 404 response; assuming unregistered", pushkeys)
             return pushkeys, []
-        elif 200 <= response.code < 300:
+        elif 200 <= response.status < 300:
             try:
                 resp_object = json_decoder.decode(response_text)
             except ValueError:
@@ -364,7 +344,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             if "results" not in resp_object:
                 log.error(
                     "%d from server but response contained no 'results' key: %r",
-                    response.code,
+                    response.status,
                     response_text,
                 )
             if len(resp_object["results"]) < len(pushkeys):
@@ -413,72 +393,68 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             return failed, new_pushkeys
         else:
             raise NotificationDispatchException(
-                f"Unknown GCM response code {response.code}"
+                f"Unknown GCM response code {response.status}"
             )
 
     def _handle_v1_response(
         self,
         log: NotificationLoggerAdapter,
-        response: IResponse,
+        response: aiohttp.ClientResponse,
         response_text: str,
         pushkeys: List[str],
         span: Span,
     ) -> Tuple[List[str], List[str]]:
-        if 500 <= response.code < 600:
-            log.debug("%d from server, waiting to try again", response.code)
+        if 500 <= response.status < 600:
+            log.debug("%d from server, waiting to try again", response.status)
 
             retry_after = None
 
-            for header_value in response.headers.getRawHeaders(
-                b"retry-after", default=[]
-            ):
+            for header_value in response.headers.getall("Retry-After", []):
                 retry_after = int(header_value)
                 span.log_kv({"event": "gcm_retry_after", "retry_after": retry_after})
 
             raise TemporaryNotificationDispatchException(
                 "GCM server error, hopefully temporary.", custom_retry_delay=retry_after
             )
-        elif response.code == 400:
+        elif response.status == 400:
             log.error(
                 "%d from server, we have sent something invalid! Error: %r",
-                response.code,
+                response.status,
                 response_text,
             )
             # permanent failure: give up
             raise NotificationDispatchException("Invalid request")
-        elif response.code == 401:
+        elif response.status == 401:
             log.error(
                 "401 from server! Our API key is invalid? Error: %r", response_text
             )
             # permanent failure: give up
             raise NotificationDispatchException("Not authorised to push")
-        elif response.code == 403:
+        elif response.status == 403:
             log.error("403 from server! Sender ID mismatch! Error: %r", response_text)
             # permanent failure: give up
             raise NotificationDispatchException("Sender ID mismatch")
-        elif response.code == 429:
-            log.debug("%d from server, waiting to try again", response.code)
+        elif response.status == 429:
+            log.debug("%d from server, waiting to try again", response.status)
 
             # Minimum 1 minute delay required
             retry_after = None
 
-            for header_value in response.headers.getRawHeaders(
-                b"retry-after", default=[]
-            ):
+            for header_value in response.headers.getall("Retry-After", []):
                 retry_after = int(header_value)
 
             span.log_kv({"event": "gcm_retry_after", "retry_after": retry_after})
             raise NotificationQuotaDispatchException(
                 "Message rate quota exceeded.", custom_retry_delay=retry_after
             )
-        elif response.code == 404:
+        elif response.status == 404:
             log.info("Reg IDs %r get 404 response; assuming unregistered", pushkeys)
             return pushkeys, []
-        elif 200 <= response.code < 300:
+        elif 200 <= response.status < 300:
             return [], []
         else:
             raise NotificationDispatchException(
-                f"Unknown GCM response code {response.code}"
+                f"Unknown GCM response code {response.status}"
             )
 
     async def _get_auth_header(self) -> str:
@@ -496,11 +472,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
     async def _refresh_credentials(self) -> None:
         assert self.credentials is not None
         if not self.credentials.valid:
-            await Deferred.fromFuture(
-                asyncio.ensure_future(
-                    self.credentials.refresh(self.google_auth_request)
-                )
-            )
+            await self.credentials.refresh(self.google_auth_request)
 
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
@@ -556,11 +528,10 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 return []
 
             headers = {
-                "User-Agent": ["sygnal"],
-                "Content-Type": ["application/json"],
+                "User-Agent": "sygnal",
+                "Content-Type": "application/json",
+                "Authorization": await self._get_auth_header(),
             }
-
-            headers["Authorization"] = [await self._get_auth_header()]
 
             body = self.base_request_body.copy()
             body["data"] = data
@@ -625,9 +596,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                         {"event": "temporary_fail", "retrying_in": retry_delay}
                     )
 
-                    await twisted_sleep(
-                        retry_delay, twisted_reactor=self.sygnal.reactor
-                    )
+                    await asyncio.sleep(retry_delay)
                 except NotificationQuotaDispatchException as exc:
                     retry_delay = RETRY_DELAY_BASE_QUOTA_EXCEEDED * (2**retry_number)
                     if exc.custom_retry_delay is not None:
@@ -643,9 +612,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                         {"event": "temporary_fail", "retrying_in": retry_delay}
                     )
 
-                    await twisted_sleep(
-                        retry_delay, twisted_reactor=self.sygnal.reactor
-                    )
+                    await asyncio.sleep(retry_delay)
 
             if len(pushkeys) > 0:
                 log.info("Gave up retrying reg IDs: %r", pushkeys)

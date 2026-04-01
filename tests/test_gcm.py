@@ -9,7 +9,7 @@
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
 import tempfile
-from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple
 from unittest.mock import MagicMock
 
 from tests import testutils
@@ -102,7 +102,7 @@ class TestGcmPushkin(GcmPushkin):
         self.preloaded_response = DummyResponse(0)
         self.preloaded_response_payload: Dict[str, Any] = {}
         self.last_request_body: Dict[str, Any] = {}
-        self.last_request_headers: Dict[AnyStr, List[AnyStr]] = {}  # type: ignore[valid-type]
+        self.last_request_headers: Dict[str, str] = {}
         self.num_requests = 0
         if self.api_version is APIVersion.V1:
             self.credentials = TestCredentials()  # type: ignore[assignment]
@@ -117,7 +117,7 @@ class TestGcmPushkin(GcmPushkin):
         self.preloaded_response_payload = response_payload
 
     async def _perform_http_request(  # type: ignore[override]
-        self, body: Dict[str, Any], headers: Dict[AnyStr, List[AnyStr]]
+        self, body: Dict[str, Any], headers: Dict[str, str]
     ) -> Tuple[DummyResponse, str]:
         self.last_request_body = body
         self.last_request_headers = headers
@@ -148,8 +148,6 @@ FAKE_SERVICE_ACCOUNT_FILE = b"""
 
 
 class GcmTestCase(testutils.TestCase):
-    maxDiff = None
-
     def config_setup(self, config: Dict[str, Any]) -> None:
         config["apps"]["com.example.gcm"] = {
             "type": "tests.test_gcm.TestGcmPushkin",
@@ -222,15 +220,12 @@ class GcmTestCase(testutils.TestCase):
             },
         }
 
-    def tearDown(self) -> None:
-        self.service_account_file.close()
-
     def get_test_pushkin(self, name: str) -> TestGcmPushkin:
         pushkin = self.sygnal.pushkins[name]
         assert isinstance(pushkin, TestGcmPushkin)
         return pushkin
 
-    def test_expected(self) -> None:
+    async def test_expected(self) -> None:
         """
         Tests the expected case: a good response from GCM leads to a good
         response from Sygnal.
@@ -248,13 +243,59 @@ class GcmTestCase(testutils.TestCase):
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
 
-        resp = self._request(self._make_dummy_notification([DEVICE_EXAMPLE]))
+        resp = await self._request(self._make_dummy_notification([DEVICE_EXAMPLE]))
 
-        self.assertEqual(1, method.call_count)
+        assert 1 == method.call_count
         notification_req = method.call_args.args
 
-        self.assertEqual(
-            {
+        assert {
+            "data": {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "type": "m.room.message",
+                "sender": "@exampleuser:matrix.org",
+                "room_name": "Mission Control",
+                "room_alias": "#exampleroom:matrix.org",
+                "sender_display_name": "Major Tom",
+                "content": {
+                    "msgtype": "m.text",
+                    "body": "I'm floating in a most peculiar way.",
+                    "other": 1,
+                },
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "prio": "high",
+                "unread": 2,
+                "missed_calls": 1,
+            },
+            "priority": "high",
+            "to": "spqr",
+        } == notification_req[2]
+
+        assert resp == {"rejected": []}
+
+    async def test_expected_api_v1(self) -> None:
+        """
+        Tests the expected case: a good response from GCM leads to a good
+        response from Sygnal.
+        """
+        self.apns_pushkin_snotif = MagicMock()
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1")
+
+        # type safety: using ignore here due to mypy not handling monkeypatching,
+        # see https://github.com/python/mypy/issues/2427
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(([], []))
+
+        resp = await self._request(
+            self._make_dummy_notification([DEVICE_EXAMPLE_APIV1])
+        )
+
+        assert 1 == method.call_count
+        notification_req = method.call_args.args
+
+        assert {
+            "message": {
                 "data": {
                     "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
                     "type": "m.room.message",
@@ -262,91 +303,39 @@ class GcmTestCase(testutils.TestCase):
                     "room_name": "Mission Control",
                     "room_alias": "#exampleroom:matrix.org",
                     "sender_display_name": "Major Tom",
-                    "content": {
-                        "msgtype": "m.text",
-                        "body": "I'm floating in a most peculiar way.",
-                        "other": 1,
-                    },
+                    "content_msgtype": "m.text",
+                    "content_body": "I'm floating in a most peculiar way.",
                     "room_id": "!slw48wfj34rtnrf:example.com",
                     "prio": "high",
-                    "unread": 2,
-                    "missed_calls": 1,
+                    "unread": "2",
+                    "missed_calls": "1",
                 },
-                "priority": "high",
-                "to": "spqr",
-            },
-            notification_req[2],
-        )
-
-        self.assertEqual(resp, {"rejected": []})
-
-    def test_expected_api_v1(self) -> None:
-        """
-        Tests the expected case: a good response from GCM leads to a good
-        response from Sygnal.
-        """
-        self.apns_pushkin_snotif = MagicMock()
-        gcm = self.get_test_pushkin("com.example.gcm.apiv1")
-
-        # type safety: using ignore here due to mypy not handling monkeypatching,
-        # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
-
-        method = self.apns_pushkin_snotif
-        method.side_effect = testutils.make_async_magic_mock(([], []))
-
-        resp = self._request(self._make_dummy_notification([DEVICE_EXAMPLE_APIV1]))
-
-        self.assertEqual(1, method.call_count)
-        notification_req = method.call_args.args
-
-        self.assertEqual(
-            {
-                "message": {
-                    "data": {
-                        "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                        "type": "m.room.message",
-                        "sender": "@exampleuser:matrix.org",
-                        "room_name": "Mission Control",
-                        "room_alias": "#exampleroom:matrix.org",
-                        "sender_display_name": "Major Tom",
-                        "content_msgtype": "m.text",
-                        "content_body": "I'm floating in a most peculiar way.",
-                        "room_id": "!slw48wfj34rtnrf:example.com",
-                        "prio": "high",
-                        "unread": "2",
-                        "missed_calls": "1",
-                    },
-                    "android": {
-                        "notification": {
-                            "body": {
-                                "test body",
-                            },
-                        },
-                        "priority": "high",
-                    },
-                    "apns": {
-                        "payload": {
-                            "aps": {
-                                "content-available": 1,
-                                "mutable-content": 1,
-                                "alert": "",
-                            },
+                "android": {
+                    "notification": {
+                        "body": {
+                            "test body",
                         },
                     },
-                    "token": "spqr",
-                }
-            },
-            notification_req[2],
-        )
+                    "priority": "high",
+                },
+                "apns": {
+                    "payload": {
+                        "aps": {
+                            "content-available": 1,
+                            "mutable-content": 1,
+                            "alert": "",
+                        },
+                    },
+                },
+                "token": "spqr",
+            }
+        } == notification_req[2]
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert notification_req[3] is not None
-        self.assertEqual(
-            notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
-        )
+        assert notification_req[3].get("Authorization") == "Bearer myaccesstoken"
 
-    def test_expected_with_default_payload(self) -> None:
+    async def test_expected_with_default_payload(self) -> None:
         """
         Tests the expected case: a good response from GCM leads to a good
         response from Sygnal.
@@ -356,14 +345,14 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE_WITH_DEFAULT_PAYLOAD])
         )
 
-        self.assertEqual(resp, {"rejected": []})
-        self.assertEqual(gcm.num_requests, 1)
+        assert resp == {"rejected": []}
+        assert gcm.num_requests == 1
 
-    def test_expected_api_v1_with_default_payload(self) -> None:
+    async def test_expected_api_v1_with_default_payload(self) -> None:
         """
         Tests the expected case: a good response from GCM leads to a good
         response from Sygnal.
@@ -373,14 +362,14 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE_APIV1_WITH_DEFAULT_PAYLOAD])
         )
 
-        self.assertEqual(resp, {"rejected": []})
-        self.assertEqual(gcm.num_requests, 1)
+        assert resp == {"rejected": []}
+        assert gcm.num_requests == 1
 
-    def test_misformed_default_payload_rejected(self) -> None:
+    async def test_misformed_default_payload_rejected(self) -> None:
         """
         Tests that a non-dict default_payload is rejected.
         """
@@ -389,14 +378,14 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"message_id": "msg42", "registration_id": "badpayload"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE_WITH_BAD_DEFAULT_PAYLOAD])
         )
 
-        self.assertEqual(resp, {"rejected": ["badpayload"]})
-        self.assertEqual(gcm.num_requests, 0)
+        assert resp == {"rejected": ["badpayload"]}
+        assert gcm.num_requests == 0
 
-    def test_rejected(self) -> None:
+    async def test_rejected(self) -> None:
         """
         Tests the rejected case: a pushkey rejected to GCM leads to Sygnal
         informing the homeserver of the rejection.
@@ -406,12 +395,12 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr", "error": "NotRegistered"}]}
         )
 
-        resp = self._request(self._make_dummy_notification([DEVICE_EXAMPLE]))
+        resp = await self._request(self._make_dummy_notification([DEVICE_EXAMPLE]))
 
-        self.assertEqual(resp, {"rejected": ["spqr"]})
-        self.assertEqual(gcm.num_requests, 1)
+        assert resp == {"rejected": ["spqr"]}
+        assert gcm.num_requests == 1
 
-    def test_batching(self) -> None:
+    async def test_batching(self) -> None:
         """
         Tests that multiple GCM devices have their notification delivered to GCM
         together, instead of being delivered separately.
@@ -427,16 +416,16 @@ class GcmTestCase(testutils.TestCase):
             },
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE, DEVICE_EXAMPLE2])
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
-        self.assertEqual(gcm.last_request_body["registration_ids"], ["spqr", "spqr2"])
-        self.assertEqual(gcm.num_requests, 1)
+        assert gcm.last_request_body["registration_ids"] == ["spqr", "spqr2"]
+        assert gcm.num_requests == 1
 
-    def test_batching_api_v1(self) -> None:
+    async def test_batching_api_v1(self) -> None:
         """
         Tests that multiple GCM devices have their notification delivered to GCM
         separately, instead of being delivered together.
@@ -452,16 +441,16 @@ class GcmTestCase(testutils.TestCase):
             },
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE_APIV1, DEVICE_EXAMPLE2_APIV1])
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
-        self.assertEqual(gcm.last_request_body["message"]["token"], "spqr2")
-        self.assertEqual(gcm.num_requests, 2)
+        assert gcm.last_request_body["message"]["token"] == "spqr2"
+        assert gcm.num_requests == 2
 
-    def test_batching_individual_failure(self) -> None:
+    async def test_batching_individual_failure(self) -> None:
         """
         Tests that multiple GCM devices have their notification delivered to GCM
         together, instead of being delivered separately,
@@ -479,16 +468,16 @@ class GcmTestCase(testutils.TestCase):
             },
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_EXAMPLE, DEVICE_EXAMPLE2])
         )
 
-        self.assertEqual(resp, {"rejected": ["spqr2"]})
+        assert resp == {"rejected": ["spqr2"]}
         assert gcm.last_request_body is not None
-        self.assertEqual(gcm.last_request_body["registration_ids"], ["spqr", "spqr2"])
-        self.assertEqual(gcm.num_requests, 1)
+        assert gcm.last_request_body["registration_ids"] == ["spqr", "spqr2"]
+        assert gcm.num_requests == 1
 
-    def test_api_v1_retry(self) -> None:
+    async def test_api_v1_retry(self) -> None:
         """
         Tests that a Firebase response of 502 results in Sygnal retrying.
         Also checks the notification message to ensure it is sane after retrying
@@ -510,52 +499,51 @@ class GcmTestCase(testutils.TestCase):
         method = self.gcm_pushkin_snotif
         method.side_effect = side_effect
 
-        _resp = self._request(self._make_dummy_notification([DEVICE_EXAMPLE_APIV1]))
-
-        self.assertEqual(3, method.call_count)
-        notification_req = method.call_args.args
-
-        self.assertEqual(
-            {
-                "message": {
-                    "data": {
-                        "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                        "type": "m.room.message",
-                        "sender": "@exampleuser:matrix.org",
-                        "room_name": "Mission Control",
-                        "room_alias": "#exampleroom:matrix.org",
-                        "sender_display_name": "Major Tom",
-                        "content_msgtype": "m.text",
-                        "content_body": "I'm floating in a most peculiar way.",
-                        "room_id": "!slw48wfj34rtnrf:example.com",
-                        "prio": "high",
-                        "unread": "2",
-                        "missed_calls": "1",
-                    },
-                    "android": {
-                        "notification": {
-                            "body": {
-                                "test body",
-                            },
-                        },
-                        "priority": "high",
-                    },
-                    "apns": {
-                        "payload": {
-                            "aps": {
-                                "content-available": 1,
-                                "mutable-content": 1,
-                                "alert": "",
-                            },
-                        },
-                    },
-                    "token": "spqr",
-                }
-            },
-            notification_req[2],
+        _resp = await self._request(
+            self._make_dummy_notification([DEVICE_EXAMPLE_APIV1])
         )
 
-    def test_fcm_options(self) -> None:
+        assert 3 == method.call_count
+        notification_req = method.call_args.args
+
+        assert {
+            "message": {
+                "data": {
+                    "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                    "type": "m.room.message",
+                    "sender": "@exampleuser:matrix.org",
+                    "room_name": "Mission Control",
+                    "room_alias": "#exampleroom:matrix.org",
+                    "sender_display_name": "Major Tom",
+                    "content_msgtype": "m.text",
+                    "content_body": "I'm floating in a most peculiar way.",
+                    "room_id": "!slw48wfj34rtnrf:example.com",
+                    "prio": "high",
+                    "unread": "2",
+                    "missed_calls": "1",
+                },
+                "android": {
+                    "notification": {
+                        "body": {
+                            "test body",
+                        },
+                    },
+                    "priority": "high",
+                },
+                "apns": {
+                    "payload": {
+                        "aps": {
+                            "content-available": 1,
+                            "mutable-content": 1,
+                            "alert": "",
+                        },
+                    },
+                },
+                "token": "spqr",
+            }
+        } == notification_req[2]
+
+    async def test_fcm_options(self) -> None:
         """
         Tests that the config option `fcm_options` allows setting a base layer
         of options to pass to FCM, for example ones that would be needed for iOS.
@@ -565,14 +553,14 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(self._make_dummy_notification([DEVICE_EXAMPLE_IOS]))
+        resp = await self._request(self._make_dummy_notification([DEVICE_EXAMPLE_IOS]))
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
-        self.assertEqual(gcm.last_request_body["mutable_content"], True)
-        self.assertEqual(gcm.last_request_body["content_available"], True)
+        assert gcm.last_request_body["mutable_content"] is True
+        assert gcm.last_request_body["content_available"] is True
 
-    def test_send_badge_counts(self) -> None:
+    async def test_send_badge_counts(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
         actually removes the unread and missed call count from notifications
@@ -582,7 +570,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification(
                 [
                     {
@@ -594,30 +582,27 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
 
         # No 'unread' or 'missed_call' fields are present
-        self.assertEqual(
-            gcm.last_request_body["data"],
-            {
-                "content": {
-                    "body": "I'm floating in a most peculiar way.",
-                    "msgtype": "m.text",
-                    "other": 1,
-                },
-                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                "prio": "high",
-                "room_alias": "#exampleroom:matrix.org",
-                "room_id": "!slw48wfj34rtnrf:example.com",
-                "room_name": "Mission Control",
-                "sender": "@exampleuser:matrix.org",
-                "sender_display_name": "Major Tom",
-                "type": "m.room.message",
+        assert gcm.last_request_body["data"] == {
+            "content": {
+                "body": "I'm floating in a most peculiar way.",
+                "msgtype": "m.text",
+                "other": 1,
             },
-        )
+            "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+            "prio": "high",
+            "room_alias": "#exampleroom:matrix.org",
+            "room_id": "!slw48wfj34rtnrf:example.com",
+            "room_name": "Mission Control",
+            "sender": "@exampleuser:matrix.org",
+            "sender_display_name": "Major Tom",
+            "type": "m.room.message",
+        }
 
-    def test_send_badge_counts_api_v1(self) -> None:
+    async def test_send_badge_counts_api_v1(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled in API v1
         actually removes the unread and missed call count from notifications
@@ -627,7 +612,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification(
                 [
                     {
@@ -639,27 +624,24 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
 
         # No 'unread' or 'missed_call' fields are present
-        self.assertEqual(
-            gcm.last_request_body["message"]["data"],
-            {
-                "content_body": "I'm floating in a most peculiar way.",
-                "content_msgtype": "m.text",
-                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                "prio": "high",
-                "room_alias": "#exampleroom:matrix.org",
-                "room_id": "!slw48wfj34rtnrf:example.com",
-                "room_name": "Mission Control",
-                "sender": "@exampleuser:matrix.org",
-                "sender_display_name": "Major Tom",
-                "type": "m.room.message",
-            },
-        )
+        assert gcm.last_request_body["message"]["data"] == {
+            "content_body": "I'm floating in a most peculiar way.",
+            "content_msgtype": "m.text",
+            "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+            "prio": "high",
+            "room_alias": "#exampleroom:matrix.org",
+            "room_id": "!slw48wfj34rtnrf:example.com",
+            "room_name": "Mission Control",
+            "sender": "@exampleuser:matrix.org",
+            "sender_display_name": "Major Tom",
+            "type": "m.room.message",
+        }
 
-    def test_send_badge_counts_with_badge_only_notification(self) -> None:
+    async def test_send_badge_counts_with_badge_only_notification(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
         prevents badge only notifications from being sent at all.
@@ -669,7 +651,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification_badge_only(
                 [
                     {
@@ -681,10 +663,10 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
-        self.assertEqual(gcm.num_requests, 0)
+        assert resp == {"rejected": []}
+        assert gcm.num_requests == 0
 
-    def test_send_badge_counts_with_badge_only_notification_api_v1(self) -> None:
+    async def test_send_badge_counts_with_badge_only_notification_api_v1(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
         in API v1 prevents badge only notifications from being sent at all.
@@ -694,7 +676,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification_badge_only(
                 [
                     {
@@ -706,10 +688,10 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
-        self.assertEqual(gcm.num_requests, 0)
+        assert resp == {"rejected": []}
+        assert gcm.num_requests == 0
 
-    def test_send_badge_counts_with_event_id_only_notification(self) -> None:
+    async def test_send_badge_counts_with_event_id_only_notification(self) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled
         actually removes the unread and missed call count from notifications
@@ -719,7 +701,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification_event_id_only(
                 [
                     {
@@ -731,20 +713,19 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
 
         # No 'unread' or 'missed_call' fields are present
-        self.assertEqual(
-            gcm.last_request_body["data"],
-            {
-                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                "prio": "high",
-                "room_id": "!slw48wfj34rtnrf:example.com",
-            },
-        )
+        assert gcm.last_request_body["data"] == {
+            "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+            "prio": "high",
+            "room_id": "!slw48wfj34rtnrf:example.com",
+        }
 
-    def test_send_badge_counts_with_event_id_only_notification_api_v1(self) -> None:
+    async def test_send_badge_counts_with_event_id_only_notification_api_v1(
+        self,
+    ) -> None:
         """
         Tests that the config option `send_badge_counts` being disabled in API v1
         actually removes the unread and missed call count from notifications
@@ -754,7 +735,7 @@ class GcmTestCase(testutils.TestCase):
             200, {"results": [{"registration_id": "spqr_new", "message_id": "msg42"}]}
         )
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification_event_id_only(
                 [
                     {
@@ -766,20 +747,17 @@ class GcmTestCase(testutils.TestCase):
             )
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert gcm.last_request_body is not None
 
         # No 'unread' or 'missed_call' fields are present
-        self.assertEqual(
-            gcm.last_request_body["message"]["data"],
-            {
-                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                "prio": "high",
-                "room_id": "!slw48wfj34rtnrf:example.com",
-            },
-        )
+        assert gcm.last_request_body["message"]["data"] == {
+            "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+            "prio": "high",
+            "room_id": "!slw48wfj34rtnrf:example.com",
+        }
 
-    def test_api_v1_large_fields(self) -> None:
+    async def test_api_v1_large_fields(self) -> None:
         """
         Tests the gcm pushkin truncates unusually large fields. Includes large
         fields both at the top level of `data`, and nested within `content`.
@@ -797,22 +775,21 @@ class GcmTestCase(testutils.TestCase):
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
 
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification_large_fields([DEVICE_EXAMPLE_APIV1])
         )
 
-        self.assertEqual(1, method.call_count)
+        assert 1 == method.call_count
         notification_req = method.call_args.args
 
         # The values for `room_name` & `content_other` should be truncated from the original.
-        self.assertEqual(
-            {
-                "message": {
-                    "data": {
-                        "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
-                        "type": "m.room.message",
-                        "sender": "@exampleuser:matrix.org",
-                        "room_name": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+        assert {
+            "message": {
+                "data": {
+                    "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                    "type": "m.room.message",
+                    "sender": "@exampleuser:matrix.org",
+                    "room_name": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
@@ -827,11 +804,11 @@ xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
-                        "room_alias": "#exampleroom:matrix.org",
-                        "sender_display_name": "Major Tom",
-                        "content_msgtype": "m.text",
-                        "content_body": "I'm floating in a most peculiar way.",
-                        "content_other": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+                    "room_alias": "#exampleroom:matrix.org",
+                    "sender_display_name": "Major Tom",
+                    "content_msgtype": "m.text",
+                    "content_body": "I'm floating in a most peculiar way.",
+                    "content_other": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
@@ -846,36 +823,32 @@ xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxx🦉oooooo£xxxxxxxx☻oo🦉…",
-                        "room_id": "!slw48wfj34rtnrf:example.com",
-                        "prio": "high",
-                        "unread": "2",
-                        "missed_calls": "1",
-                    },
-                    "android": {
-                        "notification": {
-                            "body": {
-                                "test body",
-                            },
-                        },
-                        "priority": "high",
-                    },
-                    "apns": {
-                        "payload": {
-                            "aps": {
-                                "content-available": 1,
-                                "mutable-content": 1,
-                                "alert": "",
-                            },
+                    "room_id": "!slw48wfj34rtnrf:example.com",
+                    "prio": "high",
+                    "unread": "2",
+                    "missed_calls": "1",
+                },
+                "android": {
+                    "notification": {
+                        "body": {
+                            "test body",
                         },
                     },
-                    "token": "spqr",
-                }
-            },
-            notification_req[2],
-        )
+                    "priority": "high",
+                },
+                "apns": {
+                    "payload": {
+                        "aps": {
+                            "content-available": 1,
+                            "mutable-content": 1,
+                            "alert": "",
+                        },
+                    },
+                },
+                "token": "spqr",
+            }
+        } == notification_req[2]
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
         assert notification_req[3] is not None
-        self.assertEqual(
-            notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
-        )
+        assert notification_req[3].get("Authorization") == "Bearer myaccesstoken"

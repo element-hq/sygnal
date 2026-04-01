@@ -7,28 +7,22 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
+import asyncio
 import json
 import logging
 import os.path
 from base64 import urlsafe_b64encode
 from hashlib import blake2s
-from io import BytesIO
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern
 from urllib.parse import urlparse
 
+import aiohttp
 from matrix_common.regex import glob_to_regex
 from prometheus_client import Gauge, Histogram
 from py_vapid import Vapid, VapidException
 from pywebpush import CaseInsensitiveDict, webpush
-from twisted.internet import defer
-from twisted.internet.defer import DeferredSemaphore
-from twisted.web.client import FileBodyProducer, HTTPConnectionPool, readBody
-from twisted.web.http_headers import Headers
-from twisted.web.iweb import IResponse
 
 from sygnal.exceptions import PushkinSetupException
-from sygnal.helper.context_factory import ClientTLSOptionsFactory
-from sygnal.helper.proxy.proxyagent_twisted import ProxyAgent
 from sygnal.notifications import (
     ConcurrencyLimitedPushkin,
     Device,
@@ -90,23 +84,16 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
                 nonunderstood,
             )
 
-        self.http_pool = HTTPConnectionPool(reactor=sygnal.reactor)
         self.max_connections = self.get_config(
             "max_connections", int, DEFAULT_MAX_CONNECTIONS
         )
-        self.connection_semaphore = DeferredSemaphore(self.max_connections)
-        self.http_pool.maxPersistentPerHost = self.max_connections
-
-        tls_client_options_factory = ClientTLSOptionsFactory()
+        self.connection_semaphore = asyncio.Semaphore(self.max_connections)
 
         # use the Sygnal global proxy configuration
-        proxy_url = sygnal.config.get("proxy")
+        self.proxy_url = sygnal.config.get("proxy")
 
-        self.http_agent = ProxyAgent(
-            reactor=sygnal.reactor,
-            pool=self.http_pool,
-            contextFactory=tls_client_options_factory,
-            proxy_url_str=proxy_url,
+        self.http_session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=self.max_connections),
         )
         self.http_request_factory = HttpRequestFactory()
 
@@ -193,8 +180,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
             "sub": "mailto:{}".format(self.vapid_contact_email),
         }
         # we use the semaphore to actually limit the number of concurrent
-        # requests, since the HTTPConnectionPool will actually just lead to more
-        # requests being created but not pooled – it does not perform limiting.
+        # requests, since the connection pool alone does not perform limiting.
         with QUEUE_TIME_HISTOGRAM.time():
             with PENDING_REQUESTS_GAUGE.track_inprogress():
                 await self.connection_semaphore.acquire()
@@ -210,9 +196,9 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
                         requests_session=self.http_request_factory,
                     )
                     response = await request.execute(
-                        self.http_agent, low_priority, topic
+                        self.http_session, low_priority, topic, self.proxy_url
                     )
-                    response_text = (await readBody(response)).decode()
+                    response_text = await response.text()
         finally:
             self.connection_semaphore.release()
 
@@ -283,7 +269,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
 
     def _handle_response(
         self,
-        response: IResponse,
+        response: aiohttp.ClientResponse,
         response_text: str,
         pushkey: str,
         endpoint_domain: str,
@@ -294,7 +280,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         Returns:
             Boolean whether the puskey should be rejected
         """
-        ttl_response_headers = response.headers.getRawHeaders(b"TTL")
+        ttl_response_headers = response.headers.getall("TTL", [])
         if ttl_response_headers:
             try:
                 ttl_given = int(ttl_response_headers[0])
@@ -308,31 +294,31 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
             except ValueError:
                 pass
         # permanent errors
-        if response.code == 404 or response.code == 410:
+        if response.status == 404 or response.status == 410:
             logger.warn(
                 "Rejecting pushkey %s; subscription is invalid on %s: %d: %s",
                 pushkey,
                 endpoint_domain,
-                response.code,
+                response.status,
                 response_text,
             )
             return True
         # and temporary ones
-        if response.code >= 400:
+        if response.status >= 400:
             logger.warn(
                 "webpush request failed for pushkey %s; %s responded with %d: %s",
                 pushkey,
                 endpoint_domain,
-                response.code,
+                response.status,
                 response_text,
             )
-        elif response.code != 201:
+        elif response.status != 201:
             logger.info(
                 "webpush request for pushkey %s didn't respond with 201; "
                 + "%s responded with %d: %s",
                 pushkey,
                 endpoint_domain,
-                response.code,
+                response.status,
                 response_text,
             )
         return False
@@ -351,7 +337,7 @@ class HttpRequestFactory:
         timeout: int,
     ) -> "HttpDelayedRequest":
         """
-        Convert the requests-like API to a Twisted API call.
+        Convert the requests-like API to capture parameters for later async execution.
 
         Args:
             endpoint:
@@ -359,7 +345,7 @@ class HttpRequestFactory:
             data:
                 the (encrypted) binary body of the request
             headers:
-                A (costume) dictionary with the headers.
+                A (custom) dictionary with the headers.
             timeout:
                 Ignored for now
         """
@@ -395,23 +381,25 @@ class HttpDelayedRequest:
         self.data = data
         self.vapid_headers = vapid_headers
 
-    def execute(
-        self, http_agent: ProxyAgent, low_priority: bool, topic: bytes
-    ) -> "defer.Deferred[IResponse]":
-        body_producer = FileBodyProducer(BytesIO(self.data))
-        # Convert the headers to the camelcase version.
+    async def execute(
+        self,
+        http_session: aiohttp.ClientSession,
+        low_priority: bool,
+        topic: Optional[bytes],
+        proxy_url: Optional[str] = None,
+    ) -> aiohttp.ClientResponse:
         headers = {
-            b"User-Agent": ["sygnal"],
-            b"Content-Encoding": [self.vapid_headers["content-encoding"]],
-            b"Authorization": [self.vapid_headers["authorization"]],
-            b"TTL": [self.vapid_headers["ttl"]],
-            b"Urgency": ["low" if low_priority else "normal"],
+            "User-Agent": "sygnal",
+            "Content-Encoding": self.vapid_headers["content-encoding"],
+            "Authorization": self.vapid_headers["authorization"],
+            "TTL": self.vapid_headers["ttl"],
+            "Urgency": "low" if low_priority else "normal",
         }
         if topic:
-            headers[b"Topic"] = [topic]
-        return http_agent.request(
-            b"POST",
-            self.endpoint.encode(),
-            headers=Headers(headers),
-            bodyProducer=body_producer,
+            headers["Topic"] = topic.decode() if isinstance(topic, bytes) else topic
+        return await http_session.post(
+            self.endpoint,
+            data=self.data,
+            headers=headers,
+            proxy=proxy_url,
         )
