@@ -35,7 +35,7 @@ jobs:
 
       - name: Calculate docker image tags
         id: set-tag
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: matrixdotorg/sygnal
           tags: |
