@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import tempfile
 
 import attr
 from OpenSSL import SSL
@@ -225,9 +226,10 @@ def create_test_cert_file(sanlist):
         str: the path to the file
     """
     global cert_file_count
-    csr_filename = "server.csr"
-    cnf_filename = "server.%i.cnf" % (cert_file_count,)
-    cert_filename = "server.%i.crt" % (cert_file_count,)
+    tmpdir = tempfile.mkdtemp(prefix="sygnal-test-certs-")
+    csr_filename = os.path.join(tmpdir, "server.csr")
+    cnf_filename = os.path.join(tmpdir, "server.%i.cnf" % (cert_file_count,))
+    cert_filename = os.path.join(tmpdir, "server.%i.crt" % (cert_file_count,))
     cert_file_count += 1
 
     # first build a CSR
