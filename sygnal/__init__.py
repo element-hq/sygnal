@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2020 The Matrix.org Foundation C.I.C.
 #
@@ -8,10 +7,8 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 
+import contextlib
 from importlib.metadata import PackageNotFoundError, version
 
-try:
+with contextlib.suppress(PackageNotFoundError):
     __version__ = version("matrix-sygnal")
-except PackageNotFoundError:
-    # package is not installed
-    pass

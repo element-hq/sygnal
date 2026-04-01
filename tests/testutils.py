@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019, 2020 The Matrix.org Foundation C.I.C.
 #
@@ -10,14 +9,16 @@
 import json
 import pathlib
 from collections.abc import AsyncGenerator
-from typing import Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any
 
-import aiohttp.test_utils
 import pytest_asyncio
 from multidict import CIMultiDict
 
 from sygnal.http import create_app
 from sygnal.sygnal import CONFIG_DEFAULTS, Sygnal, merge_left_with_defaults
+
+if TYPE_CHECKING:
+    import aiohttp.test_utils
 
 REQ_PATH = "/_matrix/push/v1/notify"
 
@@ -25,16 +26,14 @@ REQ_PATH = "/_matrix/push/v1/notify"
 class TestCase:
     """Base class for Sygnal integration tests using aiohttp test client."""
 
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         pass
 
     def pre_setup(self) -> None:
         """Hook called before Sygnal initialization. Override for mocking."""
-        pass
 
     def post_setup(self) -> None:
         """Hook called after Sygnal and pushkins are initialized."""
-        pass
 
     @pytest_asyncio.fixture(autouse=True)
     async def _setup_sygnal(
@@ -71,7 +70,7 @@ class TestCase:
 
         self.tmp_path = tmp_path
 
-        config: Dict[str, Any] = {"apps": {}, "log": logging_config}
+        config: dict[str, Any] = {"apps": {}, "log": logging_config}
         self.config_setup(config)
 
         config = merge_left_with_defaults(CONFIG_DEFAULTS, config)
@@ -97,7 +96,7 @@ class TestCase:
 
         patch.stopall()
 
-    def _make_dummy_notification(self, devices: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _make_dummy_notification(self, devices: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -120,8 +119,8 @@ class TestCase:
         }
 
     def _make_dummy_notification_event_id_only(
-        self, devices: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "room_id": "!slw48wfj34rtnrf:example.com",
@@ -132,8 +131,8 @@ class TestCase:
         }
 
     def _make_dummy_notification_badge_only(
-        self, devices: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "",
@@ -149,8 +148,8 @@ class TestCase:
     # character. The truncation logic should recognize this and return the string starting before
     # the `⚑`, with a `…` appended to indicate the string was truncated.
     def _make_dummy_notification_large_fields(
-        self, devices: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -236,7 +235,7 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
             }
         }
 
-    async def _request(self, payload: Union[str, dict]) -> Union[dict, int]:
+    async def _request(self, payload: str | dict) -> dict | int:
         """
         Make a dummy request to the notify endpoint with the specified payload
 
@@ -262,9 +261,7 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
 
         return await resp.json()  # type: ignore[no-any-return]
 
-    async def _multi_requests(
-        self, payloads: List[Union[str, dict]]
-    ) -> List[Union[dict, int]]:
+    async def _multi_requests(self, payloads: list[str | dict]) -> list[dict | int]:
         """
         Make multiple dummy requests to the notify endpoint with the specified payloads.
         """
