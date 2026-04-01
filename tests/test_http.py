@@ -65,7 +65,7 @@ class HttpTestCase(testutils.TestCase):
             assert isinstance(value, ApnsPushkin)
             # type safety: ignore is used here due to mypy not handling monkeypatching,
             # see https://github.com/python/mypy/issues/2427
-            value._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+            value._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
         return self.apns_pushkin_snotif
 
     async def test_with_specific_appid(self) -> None:

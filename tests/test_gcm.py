@@ -236,7 +236,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
@@ -280,7 +280,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
@@ -494,7 +494,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.gcm_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.gcm_pushkin_snotif  # type: ignore[method-assign]
 
         async def side_effect(*_args: Any, **_kwargs: Any) -> None:
             raise TemporaryNotificationDispatchException(
@@ -775,7 +775,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
