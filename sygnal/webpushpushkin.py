@@ -282,7 +282,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         Returns:
             Boolean whether the puskey should be rejected
         """
-        ttl_response_headers: List[str] = response.headers.getall("TTL", [])
+        ttl_response_headers: list[str] = response.headers.getall("TTL", [])
         if ttl_response_headers:
             try:
                 ttl_given = int(ttl_response_headers[0])
