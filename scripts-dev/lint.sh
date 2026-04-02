@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs linting scripts over the local Sygnal checkout
-# isort - sorts import statements
-# black - opinionated code formatter
-# ruff - lints and finds mistakes
+# ruff - lints, formats, and sorts imports
 # mypy - type checker
 
 set -e
@@ -96,7 +94,6 @@ echo
 # Print out the commands being run
 set -x
 
-isort "${files[@]}"
-python3 -m black "${files[@]}"
-ruff --quiet --fix "${files[@]}"
+ruff check --fix "${files[@]}"
+ruff format "${files[@]}"
 mypy "${files[@]}"

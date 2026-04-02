@@ -10,14 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v5
-      - run: uv run tox -e check_codestyle
+      - run: uv run ruff check sygnal/ tests/ stubs
+      - run: uv run ruff format --check sygnal/ tests/ stubs
 
   check-types-mypy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v5
-      - run: uv run tox -e check_types
+      - run: uv run mypy sygnal/ tests/ stubs
 
   run-unit-tests:
     name: Unit tests

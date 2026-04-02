@@ -40,15 +40,12 @@ sygnal = "sygnal.sygnal:main"
 
 [dependency-groups]
 dev = [
-    "black==24.3.0",
     "coverage~=5.5",
-    "ruff==0.0.291",
-    "isort~=5.10",
+    "ruff>=0.11",
     "google-auth-stubs==0.2.0",
     "mypy==1.5.1",
     "mypy-zope==1.0.1",
     "towncrier>=18.6.0",
-    "tox>=4.15.0",
     "types-opentracing>=2.4.2",
     "types-pyopenssl>=24.0.0",
     "types-pyyaml>=6.0.0",
@@ -65,19 +62,24 @@ module-root = ""
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+]
 ignore = [
-    "E501", # https://beta.ruff.rs/docs/rules/line-too-long/. Black enforces this for us.
+    "E501",   # line too long (handled by formatter)
 ]
 
-[tool.isort]
-line_length = 88
-sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,TESTS,LOCALFOLDER"
-default_section = "THIRDPARTY"
-known_first_party = "sygnal"
-known_tests = "tests"
-multi_line_output = 3
-include_trailing_comma = true
-combine_as_imports = true
+[tool.ruff.lint.isort]
+known-first-party = ["sygnal"]
+# Classify `tests` as local-folder so they sort after first-party (sygnal)
+# in their own section, matching the old isort custom TESTS section.
+known-local-folder = ["tests"]
+combine-as-imports = true
 
 [tool.towncrier]
 package = "sygnal"
