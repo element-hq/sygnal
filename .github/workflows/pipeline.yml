@@ -10,15 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v5
-      - run: uv run ruff check sygnal/ tests/ stubs
-      - run: uv run ruff format --check sygnal/ tests/ stubs
+      - run: uv run ruff check sygnal/ tests/
+      - run: uv run ruff format --check sygnal/ tests/
 
   check-types-mypy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v5
-      - run: uv run mypy sygnal/ tests/ stubs
+      - run: uv run mypy sygnal/ tests/
 
   run-unit-tests:
     name: Unit tests
@@ -35,15 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-      - name: Patch pyproject.toml to require oldest dependencies
-        run: |
-          sed --in-place=.bak -e '/requires-python/!s/>=/==/g' pyproject.toml
-          diff pyproject.toml.bak pyproject.toml || true
-      - name: Install Sygnal
-        run: python -m pip install -e .
-      - name: Install test dependencies
-        run: python -m pip install pytest pytest-asyncio pytest-aiohttp
-      - run: python -m pytest tests/
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --resolution=lowest-direct --python=3.10
+      - run: uv run pytest tests/
