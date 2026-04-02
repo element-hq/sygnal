@@ -194,6 +194,8 @@ class Sygnal:
         try:
             await asyncio.Event().wait()
         finally:
+            for pushkin in self.pushkins.values():
+                await pushkin.close()
             await runner.cleanup()
 
     def run(self) -> None:
