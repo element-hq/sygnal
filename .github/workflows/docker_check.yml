@@ -86,7 +86,7 @@ jobs:
 
       # https://docs.docker.com/build/ci/github-actions/share-image-jobs/
       - name: Upload container image for subsequent steps
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sygnal_image
           path: ${{ runner.temp }}/sygnal_image.tar
@@ -153,7 +153,7 @@ jobs:
 
       - name: Upload mitmdump output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: proxytest_mitmdump
           path: scripts-dev/proxy-test/out/mitmdump_out
