@@ -3,7 +3,6 @@ sygnal.yaml
 var/
 sygnal.pid
 sygnal.db
-_trial_temp*
 .coverage*
 
 /venv/
@@ -15,7 +14,6 @@ _trial_temp*
 /*.egg-info
 /build
 /dist
-/.tox
 /.python-version
 /htmlcov
 
