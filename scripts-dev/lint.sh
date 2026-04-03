@@ -79,7 +79,6 @@ else
   # then lint everything!
   if [[ -z ${files+x} ]]; then
     # Lint all source code files and directories
-    # Note: this list aims to mirror the one in tox.ini
     files=(
       "sygnal"
       "tests"

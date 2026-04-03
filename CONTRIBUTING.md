@@ -7,7 +7,7 @@ this case, the [GNU Affero General Public License v3](LICENSE-AGPL-3.0).
 ### Installing dependencies
 
 Sygnal uses [uv](https://docs.astral.sh/uv/) to manage its dependencies
-and development environment. Once you have installed Python 3.8 or newer,
+and development environment. Once you have installed Python 3.10 or newer,
 install `uv` following the [installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
 
 Next, open a terminal and install dependencies as follows:
