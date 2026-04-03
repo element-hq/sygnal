@@ -194,8 +194,11 @@ class Sygnal:
         try:
             await asyncio.Event().wait()
         finally:
-            for pushkin in self.pushkins.values():
-                await pushkin.close()
+            for name, pushkin in self.pushkins.items():
+                try:
+                    await pushkin.close()
+                except Exception:
+                    logger.exception("Error closing pushkin %s", name)
             await runner.cleanup()
 
     def run(self) -> None:
