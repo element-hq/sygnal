@@ -1,0 +1,1 @@
+Drop support for Python 3.8 and 3.9. Python 3.10 or newer is now required.
