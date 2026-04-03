@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019 The Matrix.org Foundation C.I.C.
 #
@@ -8,14 +7,15 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
+from collections.abc import MutableMapping
 from logging import LoggerAdapter
-from typing import Any, MutableMapping, Tuple
+from typing import Any
 
 
 class NotificationLoggerAdapter(LoggerAdapter):
     def process(
         self, msg: str, kwargs: MutableMapping[str, Any]
-    ) -> Tuple[str, MutableMapping[str, Any]]:
+    ) -> tuple[str, MutableMapping[str, Any]]:
         assert self.extra
         return f"[{self.extra['request_id']}] {msg}", kwargs
 

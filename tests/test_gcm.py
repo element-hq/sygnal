@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019 The Matrix.org Foundation C.I.C.
 #
@@ -8,7 +7,7 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
-from typing import TYPE_CHECKING, Any, Dict, Tuple
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 from sygnal.exceptions import TemporaryNotificationDispatchException
@@ -84,7 +83,7 @@ class StubCredentials:
         if self.valid:
             return "myaccesstoken"
         else:
-            raise Exception()
+            raise Exception
 
     async def refresh(self, request: Any) -> None:
         self.valid = True
@@ -96,18 +95,18 @@ class StubGcmPushkin(GcmPushkin):
     can be preloaded with virtual requests.
     """
 
-    def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
+    def __init__(self, name: str, sygnal: "Sygnal", config: dict[str, Any]):
         super().__init__(name, sygnal, config)
         self.preloaded_response = DummyResponse(0)
-        self.preloaded_response_payload: Dict[str, Any] = {}
-        self.last_request_body: Dict[str, Any] = {}
-        self.last_request_headers: Dict[str, str] = {}
+        self.preloaded_response_payload: dict[str, Any] = {}
+        self.last_request_body: dict[str, Any] = {}
+        self.last_request_headers: dict[str, str] = {}
         self.num_requests = 0
         if self.api_version is APIVersion.V1:
             self.credentials = StubCredentials()  # type: ignore[assignment]
 
     def preload_with_response(
-        self, code: int, response_payload: Dict[str, Any]
+        self, code: int, response_payload: dict[str, Any]
     ) -> None:
         """
         Preloads a fake GCM response.
@@ -116,8 +115,8 @@ class StubGcmPushkin(GcmPushkin):
         self.preloaded_response_payload = response_payload
 
     async def _perform_http_request(  # type: ignore[override]
-        self, body: Dict[str, Any], headers: Dict[str, str]
-    ) -> Tuple[DummyResponse, str]:
+        self, body: dict[str, Any], headers: dict[str, str]
+    ) -> tuple[DummyResponse, str]:
         self.last_request_body = body
         self.last_request_headers = headers
         self.num_requests += 1
@@ -147,7 +146,7 @@ FAKE_SERVICE_ACCOUNT_FILE = b"""
 
 
 class GcmTestCase(testutils.TestCase):
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         config["apps"]["com.example.gcm"] = {
             "type": "tests.test_gcm.StubGcmPushkin",
             "api_key": "kii",
@@ -236,7 +235,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
@@ -280,7 +279,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))
@@ -494,7 +493,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.gcm_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.gcm_pushkin_snotif  # type: ignore[method-assign]
 
         async def side_effect(*_args: Any, **_kwargs: Any) -> None:
             raise TemporaryNotificationDispatchException(
@@ -775,7 +774,7 @@ class GcmTestCase(testutils.TestCase):
 
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         method = self.apns_pushkin_snotif
         method.side_effect = testutils.make_async_magic_mock(([], []))

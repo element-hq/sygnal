@@ -7,7 +7,7 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 
-from typing import Any, Dict, List
+from typing import Any
 
 from sygnal.exceptions import (
     NotificationDispatchException,
@@ -55,7 +55,7 @@ class StubPushkin(Pushkin):
 
     async def dispatch_notification(
         self, n: Notification, device: Device, context: NotificationContext
-    ) -> List[str]:
+    ) -> list[str]:
         if device.pushkey == "raise_exception":
             raise Exception("Bad things have occurred!")
         elif device.pushkey == "remote_error":
@@ -70,7 +70,7 @@ class StubPushkin(Pushkin):
 
 
 class PushGatewayApiV1TestCase(testutils.TestCase):
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         """
         Set up a StubPushkin for the test.
         """
