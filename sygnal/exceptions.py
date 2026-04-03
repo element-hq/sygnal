@@ -41,11 +41,3 @@ class NotificationQuotaDispatchException(Exception):
     def __init__(self, *args: object, custom_retry_delay: int | None = None) -> None:
         super().__init__(*args)
         self.custom_retry_delay = custom_retry_delay
-
-
-class ProxyConnectError(ConnectionError):
-    """
-    Exception raised when we are unable to start a connection using a HTTP proxy
-    This indicates an issue with the HTTP Proxy in use rather than the final
-    endpoint we wanted to contact.
-    """
