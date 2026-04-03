@@ -25,7 +25,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import load_pem_x509_certificate
 from opentracing import Span, logs, tags
 from prometheus_client import Counter, Gauge, Histogram
-from twisted.internet.defer import Deferred
 
 from sygnal import apnstruncate
 from sygnal.exceptions import (
@@ -33,14 +32,14 @@ from sygnal.exceptions import (
     PushkinSetupException,
     TemporaryNotificationDispatchException,
 )
-from sygnal.helper.proxy.proxy_asyncio import ProxyingEventLoopWrapper
+from sygnal.helper.proxy import decompose_http_proxy_url
 from sygnal.notifications import (
     ConcurrencyLimitedPushkin,
     Device,
     Notification,
     NotificationContext,
 )
-from sygnal.utils import NotificationLoggerAdapter, twisted_sleep
+from sygnal.utils import NotificationLoggerAdapter
 
 if TYPE_CHECKING:
     from sygnal.sygnal import Sygnal
@@ -163,11 +162,12 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
 
         # use the Sygnal global proxy configuration
         proxy_url_str = sygnal.config.get("proxy")
-
-        loop = asyncio.get_running_loop()
+        proxy_host: Optional[str] = None
+        proxy_port: Optional[int] = None
         if proxy_url_str:
-            # this overrides the create_connection method to use a HTTP proxy
-            loop = ProxyingEventLoopWrapper(loop, proxy_url_str)  # type: ignore
+            proxy_url = decompose_http_proxy_url(proxy_url_str)
+            proxy_host = proxy_url.hostname
+            proxy_port = proxy_url.port
 
         if certfile is not None:
             # max_connection_attempts is actually the maximum number of
@@ -177,6 +177,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
                 client_cert=certfile,
                 use_sandbox=self.use_sandbox,
                 max_connection_attempts=0,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
             )
 
             self._report_certificate_expiration(certfile)
@@ -193,6 +195,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
                 topic=self.get_config("topic", str),
                 use_sandbox=self.use_sandbox,
                 max_connection_attempts=0,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
             )
 
         push_type = self.get_config("push_type", str)
@@ -207,8 +211,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         # without this, aioapns will retry every second forever.
         self.apns_client.pool.max_connection_attempts = 3
 
-        # without this, aioapns will not use the proxy if one is configured.
-        self.apns_client.pool.loop = loop
+    async def close(self) -> None:
+        self.apns_client.pool.close()
 
     def _report_certificate_expiration(self, certfile: str) -> None:
         """Export the epoch time that the certificate expires as a metric."""
@@ -379,9 +383,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
                         {"event": "temporary_fail", "retrying_in": retry_delay}
                     )
                     if retry_number < self.MAX_TRIES - 1:
-                        await twisted_sleep(
-                            retry_delay, twisted_reactor=self.sygnal.reactor
-                        )
+                        await asyncio.sleep(retry_delay)
 
             raise NotificationDispatchException("Retried too many times.")
 
@@ -575,6 +577,4 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
     async def _send_notification(
         self, request: NotificationRequest
     ) -> NotificationResult:
-        return await Deferred.fromFuture(
-            asyncio.ensure_future(self.apns_client.send_notification(request))
-        )
+        return await self.apns_client.send_notification(request)

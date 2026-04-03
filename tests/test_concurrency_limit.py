@@ -7,6 +7,7 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 
+import asyncio
 from typing import Any, Dict, List
 
 from sygnal.notifications import (
@@ -15,7 +16,6 @@ from sygnal.notifications import (
     Notification,
     NotificationContext,
 )
-from sygnal.utils import twisted_sleep
 
 from tests.testutils import TestCase
 
@@ -44,7 +44,7 @@ class SlowConcurrencyLimitedDummyPushkin(ConcurrencyLimitedPushkin):
         We will deliver the notification to the mighty nobody
         and we will take one second to do it, because we are slow!
         """
-        await twisted_sleep(1.0, self.sygnal.reactor)
+        await asyncio.sleep(0.01)
         return []
 
 
@@ -60,31 +60,31 @@ class ConcurrencyLimitTestCase(TestCase):
             "inflight_request_limit": 1,
         }
 
-    def test_passes_under_limit_one(self) -> None:
+    async def test_passes_under_limit_one(self) -> None:
         """
         Tests that a push notification succeeds if it is under the limit.
         """
-        resp = self._request(self._make_dummy_notification([DEVICE_GCM1_EXAMPLE]))
+        resp = await self._request(self._make_dummy_notification([DEVICE_GCM1_EXAMPLE]))
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
 
-    def test_passes_under_limit_multiple_no_interfere(self) -> None:
+    async def test_passes_under_limit_multiple_no_interfere(self) -> None:
         """
         Tests that 2 push notifications succeed if they are to different
         pushkins (so do not hit a per-pushkin limit).
         """
-        resp = self._request(
+        resp = await self._request(
             self._make_dummy_notification([DEVICE_GCM1_EXAMPLE, DEVICE_APNS_EXAMPLE])
         )
 
-        self.assertEqual(resp, {"rejected": []})
+        assert resp == {"rejected": []}
 
-    def test_fails_when_limit_hit(self) -> None:
+    async def test_fails_when_limit_hit(self) -> None:
         """
         Tests that 1 of 2 push notifications fail if they are to the same pushkins
         (so do hit the per-pushkin limit of 1).
         """
-        resp = self._multi_requests(
+        resp = await self._multi_requests(
             [
                 self._make_dummy_notification([DEVICE_GCM1_EXAMPLE]),
                 self._make_dummy_notification([DEVICE_GCM2_EXAMPLE]),
@@ -92,7 +92,7 @@ class ConcurrencyLimitTestCase(TestCase):
         )
 
         # request 0 will succeed
-        self.assertEqual(resp[0], {"rejected": []})
+        assert resp[0] == {"rejected": []}
 
         # request 1 will fail because request 0 has filled the limit
-        self.assertEqual(resp[1], 502)
+        assert resp[1] == 502
