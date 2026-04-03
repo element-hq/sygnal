@@ -211,6 +211,9 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         # without this, aioapns will retry every second forever.
         self.apns_client.pool.max_connection_attempts = 3
 
+    async def close(self) -> None:
+        self.apns_client.pool.close()
+
     def _report_certificate_expiration(self, certfile: str) -> None:
         """Export the epoch time that the certificate expires as a metric."""
         with open(certfile, "rb") as f:

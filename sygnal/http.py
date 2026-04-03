@@ -187,7 +187,10 @@ async def handle_notify(request: web.Request) -> web.Response:
 
     # if this is True, we will not close the root_span at the end of this
     # function.
+    # if this is True, we will not close the root_span at the end of this
+    # function.
     root_span_accounted_for = False
+    status_code = 500
 
     try:
         context = NotificationContext(request_id, root_span, time.perf_counter())
@@ -200,20 +203,23 @@ async def handle_notify(request: web.Request) -> web.Response:
             msg = "Expected JSON request body"
             log.warning(msg, exc_info=exc)
             root_span.log_kv({logs.EVENT: "error", "error.object": exc})
-            return web.Response(text=msg, status=400)
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
         if "notification" not in body or not isinstance(body["notification"], dict):
             msg = "Invalid notification: expecting object in 'notification' key"
             log.warning(msg)
             root_span.log_kv({logs.EVENT: "error", "message": msg})
-            return web.Response(text=msg, status=400)
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
         try:
             notif = Notification(body["notification"])
         except InvalidNotificationException as e:
             log.exception("Invalid notification")
             root_span.log_kv({logs.EVENT: "error", "error.object": e})
-            return web.Response(text=str(e), status=400)
+            status_code = 400
+            return web.Response(text=str(e), status=status_code)
 
         if notif.event_id is not None:
             root_span.set_tag("event_id", notif.event_id)
@@ -225,7 +231,8 @@ async def handle_notify(request: web.Request) -> web.Response:
         if len(notif.devices) == 0:
             msg = "No devices in notification"
             log.warning(msg)
-            return web.Response(text=msg, status=400)
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
         root_span_accounted_for = True
 
@@ -248,6 +255,7 @@ async def handle_notify(request: web.Request) -> web.Response:
         raise
     finally:
         if not root_span_accounted_for:
+            PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=status_code).inc()
             root_span.finish()
 
 
