@@ -11,6 +11,7 @@ import json
 from typing import Any, Dict, List, Union
 
 import pytest_asyncio
+from multidict import CIMultiDict
 
 from sygnal.http import create_app
 from sygnal.sygnal import CONFIG_DEFAULTS, Sygnal, merge_left_with_defaults
@@ -265,7 +266,7 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
 class DummyResponse:
     def __init__(self, code):
         self.status = code
-        self.headers: Dict[str, str] = {}
+        self.headers: CIMultiDict[str] = CIMultiDict()
 
 
 def make_async_magic_mock(ret_val):
