@@ -158,7 +158,7 @@ With custom configuration file name:
 SYGNAL_CONF=/path/to/custom_sygnal.conf uv run sygnal
 ```
 
-Python 3.8 or higher is required.
+Python 3.10 or higher is required.
 
 
 ### Container
