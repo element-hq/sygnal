@@ -94,6 +94,6 @@ echo
 # Print out the commands being run
 set -x
 
-ruff check --fix "${files[@]}"
-ruff format "${files[@]}"
-mypy "${files[@]}"
+uv run ruff check --fix "${files[@]}"
+uv run ruff format "${files[@]}"
+uv run mypy "${files[@]}"
