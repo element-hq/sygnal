@@ -7,7 +7,7 @@
 #
 
 ARG DEBIAN_VERSION=trixie
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.14
 
 ###
 ### Stage 0: builder
