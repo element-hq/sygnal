@@ -13,21 +13,13 @@ import logging
 import sys
 import time
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, List, Union
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Awaitable, Callable, List
 from uuid import uuid4
 
+from aiohttp import web
 from opentracing import Format, Span, logs, tags
 from prometheus_client import Counter, Gauge, Histogram
-from twisted.internet.defer import ensureDeferred
-from twisted.web import server
-from twisted.web.http import (
-    Request,
-    combinedLogFormatter,
-    datetimeToLogString,
-    proxiedLogFormatter,
-)
-from twisted.web.resource import Resource
-from twisted.web.server import NOT_DONE_YET
 
 from sygnal.exceptions import (
     InvalidNotificationException,
@@ -73,326 +65,251 @@ REQUESTS_IN_FLIGHT_GUAGE = Gauge(
     labelnames=["resource"],
 )
 
+access_logger = logging.getLogger("sygnal.access")
 
-class V1NotifyHandler(Resource):
-    def __init__(self, sygnal: "Sygnal"):
-        super().__init__()
-        self.sygnal = sygnal
 
-    isLeaf = True
+def _make_request_id() -> str:
+    """
+    Generates a request ID, intended to be unique, for a request so it can
+    be followed through logging.
+    """
+    return str(uuid4())
 
-    def _make_request_id(self) -> str:
-        """
-        Generates a request ID, intended to be unique, for a request so it can
-        be followed through logging.
-        Returns: a request ID for the request.
-        """
-        return str(uuid4())
 
-    def render_POST(self, request: Request) -> Union[int, bytes]:
-        response = self._handle_request(request)
-        if response != NOT_DONE_YET:
-            PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=request.code).inc()
-        return response
+def find_pushkins(sygnal: "Sygnal", appid: str) -> List[Pushkin]:
+    """Finds matching pushkins according to the appid.
 
-    def _handle_request(self, request: Request) -> Union[int, bytes]:
-        """
-        Actually handle the request.
-        Args:
-            request: The request, corresponding to a POST request.
+    Args:
+        sygnal: the Sygnal instance.
+        appid: app identifier to search.
 
-        Returns:
-            Either a str instance or NOT_DONE_YET.
+    Returns:
+        list of `Pushkin`: If it finds a specific pushkin with
+            the exact app id, immediately returns it.
+            Otherwise returns possible pushkins.
+    """
+    if appid in sygnal.pushkins:
+        return [sygnal.pushkins[appid]]
 
-        """
-        request_id = self._make_request_id()
-        header_dict = {
-            k.decode(): v[0].decode()
-            for k, v in request.requestHeaders.getAllRawHeaders()
-        }
+    return [
+        pushkin for pushkin in sygnal.pushkins.values() if pushkin.handles_appid(appid)
+    ]
 
-        # extract OpenTracing scope from the HTTP headers
-        span_ctx = self.sygnal.tracer.extract(Format.HTTP_HEADERS, header_dict)
-        span_tags = {
-            tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
-            "request_id": request_id,
-        }
 
-        root_span = self.sygnal.tracer.start_span(
-            "pushgateway_v1_notify", child_of=span_ctx, tags=span_tags
-        )
+async def _handle_dispatch(
+    sygnal: "Sygnal",
+    root_span: Span,
+    log: NotificationLoggerAdapter,
+    notif: Notification,
+    context: NotificationContext,
+) -> web.Response:
+    """
+    Handle the dispatch of notifications to devices, sequentially.
 
-        # if this is True, we will not close the root_span at the end of this
-        # function.
-        root_span_accounted_for = False
+    Returns an aiohttp Response.
+    """
+    status_code = 200
+    try:
+        rejected = []
 
-        try:
-            context = NotificationContext(request_id, root_span, time.perf_counter())
+        for d in notif.devices:
+            NOTIFS_RECEIVED_DEVICE_PUSH_COUNTER.inc()
 
-            log = NotificationLoggerAdapter(logger, {"request_id": request_id})
+            appid = d.app_id
+            found_pushkins = find_pushkins(sygnal, appid)
+            if len(found_pushkins) == 0:
+                log.warning("Got notification for unknown app ID %s", appid)
+                rejected.append(d.pushkey)
+                continue
 
-            try:
-                body = json_decoder.decode(request.content.read().decode("utf-8"))
-            except Exception as exc:
-                msg = "Expected JSON request body"
-                log.warning(msg, exc_info=exc)
-                root_span.log_kv({logs.EVENT: "error", "error.object": exc})
-                request.setResponseCode(400)
-                return msg.encode()
+            if len(found_pushkins) > 1:
+                log.warning("Got notification for an ambiguous app ID %s", appid)
+                rejected.append(d.pushkey)
+                continue
 
-            if "notification" not in body or not isinstance(body["notification"], dict):
-                msg = "Invalid notification: expecting object in 'notification' key"
-                log.warning(msg)
-                root_span.log_kv({logs.EVENT: "error", "message": msg})
-                request.setResponseCode(400)
-                return msg.encode()
+            pushkin = found_pushkins[0]
+            log.debug("Sending push to pushkin %s for app ID %s", pushkin.name, appid)
 
-            try:
-                notif = Notification(body["notification"])
-            except InvalidNotificationException as e:
-                log.exception("Invalid notification")
-                request.setResponseCode(400)
-                root_span.log_kv({logs.EVENT: "error", "error.object": e})
-                return str(e).encode()
+            NOTIFS_BY_PUSHKIN.labels(pushkin.name).inc()
 
-            if notif.event_id is not None:
-                root_span.set_tag("event_id", notif.event_id)
+            result = await pushkin.dispatch_notification(notif, d, context)
+            if not isinstance(result, list):
+                raise TypeError("Pushkin should return list.")
 
-            # track whether the notification was passed with content
-            root_span.set_tag("has_content", notif.content is not None)
+            rejected += result
 
-            NOTIFS_RECEIVED_COUNTER.inc()
+        body = json.dumps({"rejected": rejected})
 
-            if len(notif.devices) == 0:
-                msg = "No devices in notification"
-                log.warning(msg)
-                request.setResponseCode(400)
-                return msg.encode()
-
-            root_span_accounted_for = True
-
-            async def cb() -> None:
-                with REQUESTS_IN_FLIGHT_GUAGE.labels(
-                    self.__class__.__name__
-                ).track_inprogress():
-                    await self._handle_dispatch(root_span, request, log, notif, context)
-
-            ensureDeferred(cb())
-
-            # we have to try and send the notifications first,
-            # so we can find out which ones to reject
-            return NOT_DONE_YET
-        except Exception as exc_val:
-            root_span.set_tag(tags.ERROR, True)
-
-            # [2] corresponds to the traceback
-            trace = traceback.format_tb(sys.exc_info()[2])
-            root_span.log_kv(
-                {
-                    logs.EVENT: tags.ERROR,
-                    logs.MESSAGE: str(exc_val),
-                    logs.ERROR_OBJECT: exc_val,
-                    logs.ERROR_KIND: type(exc_val),
-                    logs.STACK: trace,
-                }
+        if rejected:
+            log.info(
+                "Successfully delivered notifications with %d rejected pushkeys",
+                len(rejected),
             )
-            raise
-        finally:
-            if not root_span_accounted_for:
-                root_span.finish()
 
-    def find_pushkins(self, appid: str) -> List[Pushkin]:
-        """Finds matching pushkins in self.sygnal.pushkins according to the appid.
+        return web.Response(text=body, content_type="application/json", status=200)
+    except NotificationDispatchException:
+        status_code = 502
+        log.warning("Failed to dispatch notification.", exc_info=True)
+        return web.Response(status=502)
+    except Exception:
+        status_code = 500
+        log.error("Exception whilst dispatching notification.", exc_info=True)
+        return web.Response(status=500)
+    finally:
+        PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=status_code).inc()
+        root_span.set_tag(tags.HTTP_STATUS_CODE, status_code)
 
-        Args:
-            appid: app identifier to search in self.sygnal.pushkins.
+        req_time = time.perf_counter() - context.start_time
+        if req_time > 0:
+            NOTIFY_HANDLE_HISTOGRAM.labels(code=status_code).observe(req_time)
+        if not 200 <= status_code < 300:
+            root_span.set_tag(tags.ERROR, True)
+        root_span.finish()
 
-        Returns:
-            list of `Pushkin`: If it finds a specific pushkin with
-                the exact app id, immediately returns it.
-                Otherwise returns possible pushkins.
-        """
-        # if found a specific appid, just return it as a list
-        if appid in self.sygnal.pushkins:
-            return [self.sygnal.pushkins[appid]]
 
-        # otherwise, find any pushkins whose appid patterns match
-        return [
-            pushkin
-            for pushkin in self.sygnal.pushkins.values()
-            if pushkin.handles_appid(appid)
-        ]
+async def handle_notify(request: web.Request) -> web.Response:
+    """Handle POST /_matrix/push/v1/notify."""
+    sygnal: "Sygnal" = request.app["sygnal"]
 
-    async def _handle_dispatch(
-        self,
-        root_span: Span,
-        request: Request,
-        log: NotificationLoggerAdapter,
-        notif: Notification,
-        context: NotificationContext,
-    ) -> None:
-        """
-        Actually handle the dispatch of notifications to devices, sequentially
-        for simplicity.
+    request_id = _make_request_id()
+    header_dict = {k: v for k, v in request.headers.items()}
 
-        root_span: the OpenTracing span
-        request: the Twisted Web Request
-        log: the logger to use
-        notif: the notification to dispatch
-        context: the context of the notification
-        """
+    # extract OpenTracing scope from the HTTP headers
+    span_ctx = sygnal.tracer.extract(Format.HTTP_HEADERS, header_dict)
+    span_tags = {
+        tags.SPAN_KIND: tags.SPAN_KIND_RPC_SERVER,
+        "request_id": request_id,
+    }
+
+    root_span = sygnal.tracer.start_span(
+        "pushgateway_v1_notify", child_of=span_ctx, tags=span_tags
+    )
+
+    # if this is True, we will not close the root_span at the end of this
+    # function.
+    # if this is True, we will not close the root_span at the end of this
+    # function.
+    root_span_accounted_for = False
+    status_code = 500
+
+    try:
+        context = NotificationContext(request_id, root_span, time.perf_counter())
+        log = NotificationLoggerAdapter(logger, {"request_id": request_id})
+
         try:
-            rejected = []
+            raw_body = await request.read()
+            body = json_decoder.decode(raw_body.decode("utf-8"))
+        except Exception as exc:
+            msg = "Expected JSON request body"
+            log.warning(msg, exc_info=exc)
+            root_span.log_kv({logs.EVENT: "error", "error.object": exc})
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
-            for d in notif.devices:
-                NOTIFS_RECEIVED_DEVICE_PUSH_COUNTER.inc()
+        if "notification" not in body or not isinstance(body["notification"], dict):
+            msg = "Invalid notification: expecting object in 'notification' key"
+            log.warning(msg)
+            root_span.log_kv({logs.EVENT: "error", "message": msg})
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
-                appid = d.app_id
-                found_pushkins = self.find_pushkins(appid)
-                if len(found_pushkins) == 0:
-                    log.warning("Got notification for unknown app ID %s", appid)
-                    rejected.append(d.pushkey)
-                    continue
+        try:
+            notif = Notification(body["notification"])
+        except InvalidNotificationException as e:
+            log.exception("Invalid notification")
+            root_span.log_kv({logs.EVENT: "error", "error.object": e})
+            status_code = 400
+            return web.Response(text=str(e), status=status_code)
 
-                if len(found_pushkins) > 1:
-                    log.warning("Got notification for an ambiguous app ID %s", appid)
-                    rejected.append(d.pushkey)
-                    continue
+        if notif.event_id is not None:
+            root_span.set_tag("event_id", notif.event_id)
 
-                pushkin = found_pushkins[0]
-                log.debug(
-                    "Sending push to pushkin %s for app ID %s", pushkin.name, appid
-                )
+        root_span.set_tag("has_content", notif.content is not None)
 
-                NOTIFS_BY_PUSHKIN.labels(pushkin.name).inc()
+        NOTIFS_RECEIVED_COUNTER.inc()
 
-                result = await pushkin.dispatch_notification(notif, d, context)
-                if not isinstance(result, list):
-                    raise TypeError("Pushkin should return list.")
+        if len(notif.devices) == 0:
+            msg = "No devices in notification"
+            log.warning(msg)
+            status_code = 400
+            return web.Response(text=msg, status=status_code)
 
-                rejected += result
+        root_span_accounted_for = True
 
-            request.write(json.dumps({"rejected": rejected}).encode())
+        with REQUESTS_IN_FLIGHT_GUAGE.labels("notify").track_inprogress():
+            return await _handle_dispatch(sygnal, root_span, log, notif, context)
 
-            if rejected:
-                log.info(
-                    "Successfully delivered notifications with %d rejected pushkeys",
-                    len(rejected),
-                )
-        except NotificationDispatchException:
-            request.setResponseCode(502)
-            log.warning("Failed to dispatch notification.", exc_info=True)
-        except Exception:
-            request.setResponseCode(500)
-            log.error("Exception whilst dispatching notification.", exc_info=True)
-        finally:
-            if not request._disconnected:
-                request.finish()
+    except Exception as exc_val:
+        root_span.set_tag(tags.ERROR, True)
 
-            PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=request.code).inc()
-            root_span.set_tag(tags.HTTP_STATUS_CODE, request.code)
-
-            req_time = time.perf_counter() - context.start_time
-            if req_time > 0:
-                # can be negative as perf_counter() may not be monotonic
-                NOTIFY_HANDLE_HISTOGRAM.labels(code=request.code).observe(req_time)
-            if not 200 <= request.code < 300:
-                root_span.set_tag(tags.ERROR, True)
+        trace = traceback.format_tb(sys.exc_info()[2])
+        root_span.log_kv(
+            {
+                logs.EVENT: tags.ERROR,
+                logs.MESSAGE: str(exc_val),
+                logs.ERROR_OBJECT: exc_val,
+                logs.ERROR_KIND: type(exc_val),
+                logs.STACK: trace,
+            }
+        )
+        raise
+    finally:
+        if not root_span_accounted_for:
+            PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=status_code).inc()
             root_span.finish()
 
 
-class HealthHandler(Resource):
-    def render_GET(self, request: Request) -> bytes:
-        """
-        `/health` is used for automatic checking of whether the service is up.
-        It should just return a blank 200 OK response.
-        """
-        return b""
-
-
-class SizeLimitingRequest(server.Request):
-    # Arbitrarily limited to 512 KiB.
-    MAX_REQUEST_SIZE = 512 * 1024
-
-    def handleContentChunk(self, data: bytes) -> None:
-        # we should have a content by now
-        assert self.content, "handleContentChunk() called before gotLength()"
-        if self.content.tell() + len(data) > self.MAX_REQUEST_SIZE:
-            logger.info(
-                "Aborting connection from %s because the request exceeds maximum size",
-                self.client,
-            )
-            assert self.transport is not None
-            self.transport.abortConnection()
-            return
-
-        return super().handleContentChunk(data)
-
-
-class SygnalLoggedSite(server.Site):
+async def handle_health(request: web.Request) -> web.Response:
     """
-    A subclass of Site to perform access logging in a way that makes sense for
-    Sygnal.
+    `/health` is used for automatic checking of whether the service is up.
+    It should just return a blank 200 OK response.
     """
-
-    def __init__(
-        self,
-        *args: Any,
-        log_formatter: Callable[[str, server.Request], str],
-        **kwargs: Any,
-    ):
-        super().__init__(*args, **kwargs)
-        self.log_formatter = log_formatter
-        self.logger = logging.getLogger("sygnal.access")
-
-    def log(self, request: server.Request) -> None:
-        """Log this request. Called by request.finish."""
-        # this also works around a bug in twisted.web.http.HTTPFactory which uses a
-        # monotonic time as an epoch time.
-
-        def _should_log_request() -> bool:
-            """Whether we should log at INFO that we processed the request."""
-            if request.path == b"/health":
-                return False
-
-            return True
-
-        log_level = logging.INFO if _should_log_request() else logging.DEBUG
-        log_date_time = datetimeToLogString()
-        line = self.log_formatter(log_date_time, request)
-        self.logger.log(log_level, "Handled request: %s", line)
+    return web.Response()
 
 
-class PushGatewayApiServer(object):
-    def __init__(self, sygnal: "Sygnal"):
-        """
-        Initialises the /_matrix/push/* (Push Gateway API) server.
-        Args:
-            sygnal (Sygnal): the Sygnal object
-        """
-        root = Resource()
-        matrix = Resource()
-        push = Resource()
-        v1 = Resource()
+@web.middleware
+async def access_log_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    """Middleware that logs requests, skipping /health at INFO level."""
+    response = await handler(request)
 
-        # Note that using plain strings here will lead to silent failure
-        root.putChild(b"_matrix", matrix)
-        matrix.putChild(b"push", push)
-        push.putChild(b"v1", v1)
-        v1.putChild(b"notify", V1NotifyHandler(sygnal))
+    is_health = request.path == "/health"
+    log_level = logging.DEBUG if is_health else logging.INFO
 
-        # add health
-        root.putChild(b"health", HealthHandler())
+    use_x_forwarded_for = request.app.get("use_x_forwarded_for", False)
+    if use_x_forwarded_for:
+        remote = request.headers.get("X-Forwarded-For", request.remote)
+    else:
+        remote = request.remote
 
-        use_x_forwarded_for = sygnal.config["log"]["access"]["x_forwarded_for"]
+    now = datetime.now(timezone.utc).strftime("%d/%b/%Y:%H:%M:%S %z")
+    line = (
+        f"{remote} - - [{now}] "
+        f'"{request.method} {request.path} '
+        f'HTTP/{request.version.major}.{request.version.minor}" '
+        f"{response.status} {response.content_length or 0}"
+    )
+    access_logger.log(log_level, "Handled request: %s", line)
 
-        log_formatter = (
-            proxiedLogFormatter if use_x_forwarded_for else combinedLogFormatter
-        )
+    return response
 
-        self.site = SygnalLoggedSite(
-            root,
-            reactor=sygnal.reactor,
-            log_formatter=log_formatter,
-            requestFactory=SizeLimitingRequest,
-        )
+
+# Arbitrarily limited to 512 KiB.
+MAX_REQUEST_SIZE = 512 * 1024
+
+
+def create_app(sygnal: "Sygnal") -> web.Application:
+    """Create and configure the aiohttp web application."""
+    app = web.Application(
+        middlewares=[access_log_middleware],
+        client_max_size=MAX_REQUEST_SIZE,
+    )
+    app["sygnal"] = sygnal
+    app["use_x_forwarded_for"] = sygnal.config["log"]["access"]["x_forwarded_for"]
+
+    app.router.add_post("/_matrix/push/v1/notify", handle_notify)
+    app.router.add_get("/health", handle_health)
+
+    return app
