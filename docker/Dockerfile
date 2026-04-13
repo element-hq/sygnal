@@ -41,7 +41,7 @@ ENV UV_LINK_MODE=copy
 ARG POETRY_VERSION
 RUN --mount=type=cache,target=/root/.cache/uv \
   if [ -z "$TEST_ONLY_IGNORE_POETRY_LOCKFILE" ]; then \
-    uvx --with poetry-plugin-export \
+    uvx --with poetry-plugin-export==1.10.0 \
         poetry@${POETRY_VERSION} export -o /sygnal/requirements.txt ${TEST_ONLY_SKIP_DEP_HASH_VERIFICATION:+--without-hashes}; \
   else \
     touch /sygnal/requirements.txt; \
