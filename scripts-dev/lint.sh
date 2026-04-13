@@ -79,7 +79,6 @@ else
   # then lint everything!
   if [[ -z ${files+x} ]]; then
     # Lint all source code files and directories
-    # Note: this list aims to mirror the one in tox.ini
     files=(
       "sygnal"
       "tests"
@@ -94,6 +93,6 @@ echo
 # Print out the commands being run
 set -x
 
-ruff check --fix "${files[@]}"
-ruff format "${files[@]}"
-mypy "${files[@]}"
+uv run ruff check --fix "${files[@]}"
+uv run ruff format "${files[@]}"
+uv run mypy "${files[@]}"
