@@ -8,7 +8,7 @@
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 
 import asyncio
-from typing import Any, Dict, List
+from typing import Any
 
 from sygnal.notifications import (
     ConcurrencyLimitedPushkin,
@@ -39,7 +39,7 @@ DEVICE_APNS_EXAMPLE = {
 class SlowConcurrencyLimitedDummyPushkin(ConcurrencyLimitedPushkin):
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
-    ) -> List[str]:
+    ) -> list[str]:
         """
         We will deliver the notification to the mighty nobody
         and we will take one second to do it, because we are slow!
@@ -49,7 +49,7 @@ class SlowConcurrencyLimitedDummyPushkin(ConcurrencyLimitedPushkin):
 
 
 class ConcurrencyLimitTestCase(TestCase):
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         super().config_setup(config)
         config["apps"]["com.example.gcm"] = {
             "type": "tests.test_concurrency_limit.SlowConcurrencyLimitedDummyPushkin",

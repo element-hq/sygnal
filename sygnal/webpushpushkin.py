@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2021 The Matrix.org Foundation C.I.C.
 #
@@ -13,7 +12,7 @@ import logging
 import os.path
 from base64 import urlsafe_b64encode
 from hashlib import blake2s
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Pattern
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import aiohttp
@@ -31,6 +30,8 @@ from sygnal.notifications import (
 )
 
 if TYPE_CHECKING:
+    from re import Pattern
+
     from sygnal.sygnal import Sygnal
 
 QUEUE_TIME_HISTOGRAM = Histogram(
@@ -74,7 +75,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         "ttl",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
-    def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
+    def __init__(self, name: str, sygnal: "Sygnal", config: dict[str, Any]):
         super().__init__(name, sygnal, config)
 
         nonunderstood = self.cfg.keys() - self.UNDERSTOOD_CONFIG_FIELDS
@@ -97,7 +98,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         )
         self.http_request_factory = HttpRequestFactory()
 
-        self.allowed_endpoints: Optional[List[Pattern[str]]] = None
+        self.allowed_endpoints: list[Pattern[str]] | None = None
         allowed_endpoints = self.get_config("allowed_endpoints", list)
         if allowed_endpoints:
             self.allowed_endpoints = list(map(glob_to_regex, allowed_endpoints))
@@ -121,10 +122,10 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
 
     async def _dispatch_notification_unlimited(
         self, n: Notification, device: Device, context: NotificationContext
-    ) -> List[str]:
+    ) -> list[str]:
         p256dh = device.pushkey
         if not isinstance(device.data, dict):
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey %s; device.data is not a dict", device.pushkey
             )
             return [device.pushkey]
@@ -138,9 +139,9 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         auth = device.data.get("auth")
 
         if not p256dh or not isinstance(endpoint, str) or not isinstance(auth, str):
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey; subscription info incomplete or invalid "
-                + "(p256dh: %s, endpoint: %r, auth: %r)",
+                "(p256dh: %s, endpoint: %r, auth: %r)",
                 p256dh,
                 endpoint,
                 auth,
@@ -180,28 +181,26 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
 
         # note that webpush modifies vapid_claims, so make sure it's only used once
         vapid_claims = {
-            "sub": "mailto:{}".format(self.vapid_contact_email),
+            "sub": f"mailto:{self.vapid_contact_email}",
         }
         # we use the semaphore to actually limit the number of concurrent
         # requests, since the connection pool alone does not perform limiting.
-        with QUEUE_TIME_HISTOGRAM.time():
-            with PENDING_REQUESTS_GAUGE.track_inprogress():
-                await self.connection_semaphore.acquire()
+        with QUEUE_TIME_HISTOGRAM.time(), PENDING_REQUESTS_GAUGE.track_inprogress():
+            await self.connection_semaphore.acquire()
         try:
-            with SEND_TIME_HISTOGRAM.time():
-                with ACTIVE_REQUESTS_GAUGE.track_inprogress():
-                    request = webpush(
-                        subscription_info=subscription_info,
-                        data=data,
-                        ttl=self.ttl,
-                        vapid_private_key=self.vapid_private_key,
-                        vapid_claims=vapid_claims,
-                        requests_session=self.http_request_factory,
-                    )
-                    response = await request.execute(
-                        self.http_session, low_priority, topic, self.proxy_url
-                    )
-                    response_text = await response.text()
+            with SEND_TIME_HISTOGRAM.time(), ACTIVE_REQUESTS_GAUGE.track_inprogress():
+                request = webpush(
+                    subscription_info=subscription_info,
+                    data=data,
+                    ttl=self.ttl,
+                    vapid_private_key=self.vapid_private_key,
+                    vapid_claims=vapid_claims,
+                    requests_session=self.http_request_factory,
+                )
+                response = await request.execute(
+                    self.http_session, low_priority, topic, self.proxy_url
+                )
+                response_text = await response.text()
         finally:
             self.connection_semaphore.release()
 
@@ -213,7 +212,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         return []
 
     @staticmethod
-    def _build_payload(n: Notification, device: Device) -> Dict[str, Any]:
+    def _build_payload(n: Notification, device: Device) -> dict[str, Any]:
         """
         Build the payload data to be sent.
 
@@ -283,7 +282,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         Returns:
             Boolean whether the puskey should be rejected
         """
-        ttl_response_headers: List[str] = response.headers.getall("TTL", [])
+        ttl_response_headers: list[str] = response.headers.getall("TTL", [])
         if ttl_response_headers:
             try:
                 ttl_given = int(ttl_response_headers[0])
@@ -298,7 +297,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
                 pass
         # permanent errors
         if response.status == 404 or response.status == 410:
-            logger.warn(
+            logger.warning(
                 "Rejecting pushkey %s; subscription is invalid on %s: %d: %s",
                 pushkey,
                 endpoint_domain,
@@ -308,7 +307,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
             return True
         # and temporary ones
         if response.status >= 400:
-            logger.warn(
+            logger.warning(
                 "webpush request failed for pushkey %s; %s responded with %d: %s",
                 pushkey,
                 endpoint_domain,
@@ -318,7 +317,7 @@ class WebpushPushkin(ConcurrencyLimitedPushkin):
         elif response.status != 201:
             logger.info(
                 "webpush request for pushkey %s didn't respond with 201; "
-                + "%s responded with %d: %s",
+                "%s responded with %d: %s",
                 pushkey,
                 endpoint_domain,
                 response.status,
@@ -377,7 +376,7 @@ class HttpDelayedRequest:
     """
 
     status_code: int = 200
-    text: Optional[str] = None
+    text: str | None = None
 
     def __init__(self, endpoint: str, data: bytes, vapid_headers: CaseInsensitiveDict):
         self.endpoint = endpoint
@@ -388,8 +387,8 @@ class HttpDelayedRequest:
         self,
         http_session: aiohttp.ClientSession,
         low_priority: bool,
-        topic: Optional[bytes],
-        proxy_url: Optional[str] = None,
+        topic: bytes | None,
+        proxy_url: str | None = None,
     ) -> aiohttp.ClientResponse:
         headers = {
             "User-Agent": "sygnal",

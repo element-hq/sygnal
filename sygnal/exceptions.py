@@ -6,7 +6,6 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
-from typing import Optional
 
 
 class InvalidNotificationException(Exception):
@@ -27,7 +26,7 @@ class TemporaryNotificationDispatchException(Exception):
     hopefully temporary, so the request should possibly be retried soon.
     """
 
-    def __init__(self, *args: object, custom_retry_delay: Optional[int] = None) -> None:
+    def __init__(self, *args: object, custom_retry_delay: int | None = None) -> None:
         super().__init__(*args)
         self.custom_retry_delay = custom_retry_delay
 
@@ -39,16 +38,6 @@ class NotificationQuotaDispatchException(Exception):
     retried soon.
     """
 
-    def __init__(self, *args: object, custom_retry_delay: Optional[int] = None) -> None:
+    def __init__(self, *args: object, custom_retry_delay: int | None = None) -> None:
         super().__init__(*args)
         self.custom_retry_delay = custom_retry_delay
-
-
-class ProxyConnectError(ConnectionError):
-    """
-    Exception raised when we are unable to start a connection using a HTTP proxy
-    This indicates an issue with the HTTP Proxy in use rather than the final
-    endpoint we wanted to contact.
-    """
-
-    pass

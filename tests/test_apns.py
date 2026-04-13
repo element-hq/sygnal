@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019 The Matrix.org Foundation C.I.C.
 #
@@ -7,7 +6,7 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from aioapns.common import NotificationResult, PushType
@@ -63,7 +62,7 @@ class ApnsTestCase(testutils.TestCase):
         assert isinstance(test_pushkin, ApnsPushkin)
         return test_pushkin
 
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         super().config_setup(config)
         config["apps"][PUSHKIN_ID] = {"type": "apns", "certfile": TEST_CERTFILE_PATH}
         config["apps"][PUSHKIN_ID_WITHOUT_BADGES] = {
@@ -95,8 +94,8 @@ class ApnsTestCase(testutils.TestCase):
         test_pushkin_push_type = self.get_test_pushkin(PUSHKIN_ID_WITH_PUSH_TYPE)
         # type safety: using ignore here due to mypy not handling monkeypatching,
         # see https://github.com/python/mypy/issues/2427
-        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
-        test_pushkin_push_type._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
+        test_pushkin_push_type._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
     async def test_payload_truncation(self) -> None:
         """
@@ -318,7 +317,7 @@ class ApnsTestCase(testutils.TestCase):
             NotificationResult("notID", "200")
         )
         test_pushkin = self.get_test_pushkin(PUSHKIN_ID_WITHOUT_BADGES)
-        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         # Act
         resp = await self._request(
@@ -347,7 +346,7 @@ class ApnsTestCase(testutils.TestCase):
             NotificationResult("notID", "200")
         )
         test_pushkin = self.get_test_pushkin(PUSHKIN_ID_WITHOUT_BADGES)
-        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+        test_pushkin._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
 
         # Act
         resp = await self._request(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2019-2025 New Vector Ltd.
 # Copyright 2019 The Matrix.org Foundation C.I.C.
 # Copyright 2014 OpenMarket Ltd.
@@ -13,8 +12,9 @@ import logging
 import sys
 import time
 import traceback
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Awaitable, Callable, List
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from aiohttp import web
@@ -76,7 +76,7 @@ def _make_request_id() -> str:
     return str(uuid4())
 
 
-def find_pushkins(sygnal: "Sygnal", appid: str) -> List[Pushkin]:
+def find_pushkins(sygnal: "Sygnal", appid: str) -> list[Pushkin]:
     """Finds matching pushkins according to the appid.
 
     Args:
@@ -153,7 +153,7 @@ async def _handle_dispatch(
         return web.Response(status=502)
     except Exception:
         status_code = 500
-        log.error("Exception whilst dispatching notification.", exc_info=True)
+        log.exception("Exception whilst dispatching notification.")
         return web.Response(status=500)
     finally:
         PUSHGATEWAY_HTTP_RESPONSES_COUNTER.labels(code=status_code).inc()
@@ -169,10 +169,10 @@ async def _handle_dispatch(
 
 async def handle_notify(request: web.Request) -> web.Response:
     """Handle POST /_matrix/push/v1/notify."""
-    sygnal: "Sygnal" = request.app["sygnal"]
+    sygnal: Sygnal = request.app["sygnal"]
 
     request_id = _make_request_id()
-    header_dict = {k: v for k, v in request.headers.items()}
+    header_dict = dict(request.headers.items())
 
     # extract OpenTracing scope from the HTTP headers
     span_ctx = sygnal.tracer.extract(Format.HTTP_HEADERS, header_dict)

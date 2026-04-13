@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright 2025 New Vector Ltd.
 # Copyright 2019, 2020 The Matrix.org Foundation C.I.C.
 #
@@ -8,7 +7,9 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
-from typing import Any, Dict, List, Union
+import pathlib
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 import pytest_asyncio
 from multidict import CIMultiDict
@@ -16,25 +17,28 @@ from multidict import CIMultiDict
 from sygnal.http import create_app
 from sygnal.sygnal import CONFIG_DEFAULTS, Sygnal, merge_left_with_defaults
 
+if TYPE_CHECKING:
+    import aiohttp.test_utils
+
 REQ_PATH = "/_matrix/push/v1/notify"
 
 
 class TestCase:
     """Base class for Sygnal integration tests using aiohttp test client."""
 
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         pass
 
     def pre_setup(self) -> None:
         """Hook called before Sygnal initialization. Override for mocking."""
-        pass
 
     def post_setup(self) -> None:
         """Hook called after Sygnal and pushkins are initialized."""
-        pass
 
     @pytest_asyncio.fixture(autouse=True)
-    async def _setup_sygnal(self, aiohttp_client, tmp_path):
+    async def _setup_sygnal(
+        self, aiohttp_client: Any, tmp_path: pathlib.Path
+    ) -> AsyncGenerator[None]:
         logging_config = {
             "setup": {
                 "disable_existing_loggers": False,
@@ -66,7 +70,7 @@ class TestCase:
 
         self.tmp_path = tmp_path
 
-        config: Dict[str, Any] = {"apps": {}, "log": logging_config}
+        config: dict[str, Any] = {"apps": {}, "log": logging_config}
         self.config_setup(config)
 
         config = merge_left_with_defaults(CONFIG_DEFAULTS, config)
@@ -84,7 +88,7 @@ class TestCase:
         self.post_setup()
 
         app = create_app(self.sygnal)
-        self.client = await aiohttp_client(app)
+        self.client: aiohttp.test_utils.TestClient = await aiohttp_client(app)
 
         yield
 
@@ -92,7 +96,7 @@ class TestCase:
 
         patch.stopall()
 
-    def _make_dummy_notification(self, devices):
+    def _make_dummy_notification(self, devices: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -114,7 +118,9 @@ class TestCase:
             }
         }
 
-    def _make_dummy_notification_event_id_only(self, devices):
+    def _make_dummy_notification_event_id_only(
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "room_id": "!slw48wfj34rtnrf:example.com",
@@ -124,7 +130,9 @@ class TestCase:
             }
         }
 
-    def _make_dummy_notification_badge_only(self, devices):
+    def _make_dummy_notification_badge_only(
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "",
@@ -139,7 +147,9 @@ class TestCase:
     # This will make the truncation (which is `str[: 1024 - 3]`) occur in the middle of a unicode
     # character. The truncation logic should recognize this and return the string starting before
     # the `⚑`, with a `…` appended to indicate the string was truncated.
-    def _make_dummy_notification_large_fields(self, devices):
+    def _make_dummy_notification_large_fields(
+        self, devices: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "notification": {
                 "id": "$3957tyerfgewrf384",
@@ -225,7 +235,7 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
             }
         }
 
-    async def _request(self, payload: Union[str, dict]) -> Union[dict, int]:
+    async def _request(self, payload: str | dict) -> dict | int:
         """
         Make a dummy request to the notify endpoint with the specified payload
 
@@ -249,11 +259,9 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
         if resp.status != 200:
             return resp.status
 
-        return await resp.json()
+        return await resp.json()  # type: ignore[no-any-return]
 
-    async def _multi_requests(
-        self, payloads: List[Union[str, dict]]
-    ) -> List[Union[dict, int]]:
+    async def _multi_requests(self, payloads: list[str | dict]) -> list[dict | int]:
         """
         Make multiple dummy requests to the notify endpoint with the specified payloads.
         """
@@ -264,13 +272,13 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo",
 
 
 class DummyResponse:
-    def __init__(self, code):
+    def __init__(self, code: int) -> None:
         self.status = code
         self.headers: CIMultiDict[str] = CIMultiDict()
 
 
-def make_async_magic_mock(ret_val):
-    async def dummy(*_args, **_kwargs):
+def make_async_magic_mock(ret_val: Any) -> Any:
+    async def dummy(*_args: Any, **_kwargs: Any) -> Any:
         return ret_val
 
     return dummy

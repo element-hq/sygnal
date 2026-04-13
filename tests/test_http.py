@@ -6,7 +6,7 @@
 #
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from aioapns.common import NotificationResult
@@ -54,7 +54,7 @@ class HttpTestCase(testutils.TestCase):
         # Since no certificate exists, don't try to read it.
         patch("sygnal.apnspushkin.ApnsPushkin._report_certificate_expiration").start()
 
-    def config_setup(self, config: Dict[str, Any]) -> None:
+    def config_setup(self, config: dict[str, Any]) -> None:
         super().config_setup(config)
         config["apps"][PUSHKIN_ID_1] = {"type": "apns", "certfile": TEST_CERTFILE_PATH}
         config["apps"][PUSHKIN_ID_2] = {"type": "apns", "certfile": TEST_CERTFILE_PATH}
@@ -62,11 +62,11 @@ class HttpTestCase(testutils.TestCase):
 
     def _setup_apns_pushkin_snotif(self) -> MagicMock:
         self.apns_pushkin_snotif = MagicMock()
-        for key, value in self.sygnal.pushkins.items():
+        for value in self.sygnal.pushkins.values():
             assert isinstance(value, ApnsPushkin)
             # type safety: ignore is used here due to mypy not handling monkeypatching,
             # see https://github.com/python/mypy/issues/2427
-            value._send_notification = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+            value._send_notification = self.apns_pushkin_snotif  # type: ignore[method-assign]
         return self.apns_pushkin_snotif
 
     async def test_with_specific_appid(self) -> None:
