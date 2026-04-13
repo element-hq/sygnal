@@ -17,14 +17,14 @@ FROM ghcr.io/astral-sh/uv:python${PYTHON_VERSION}-${DEBIAN_VERSION}-slim AS buil
 WORKDIR /app
 
 # Don't download Python — use the one from the base image.
-ENV UV_PYTHON_DOWNLOADS=0
+ENV UV_PYTHON_DOWNLOADS=never
 
 # Silence a warning as uv can't do hardlinks between its cache
 # (mounted as --mount=type=cache) and the target directory.
 ENV UV_LINK_MODE=copy
 
 # Compile bytecode for faster startup in production.
-ENV UV_COMPILE_BYTECODE=1
+ENV UV_COMPILE_BYTECODE=true
 
 # Install dependencies first (for Docker layer caching).
 RUN --mount=type=cache,target=/root/.cache/uv \
