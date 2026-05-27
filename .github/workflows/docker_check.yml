@@ -43,7 +43,7 @@ jobs:
       # otherwise we can't export the multi-arch image later
       # https://github.com/docker/buildx/issues/59#issuecomment-2770311050
       - name: Set up Docker
-        uses: docker/setup-docker-action@v5
+        uses: docker/setup-docker-action@v5.1.0
         with:
           daemon-config: |
             {
@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build all platforms
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.1.0
         with:
           context: .
           push: false
