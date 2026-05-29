@@ -19,7 +19,7 @@ on:
 
       # changes to the source code or dependencies
       - 'pyproject.toml'
-      - 'poetry.lock'
+      - 'uv.lock'
       - 'sygnal/**'
 
       # changes to the proxy-test setup

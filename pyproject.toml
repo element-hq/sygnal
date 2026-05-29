@@ -56,13 +56,12 @@ dev = [
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0,<3"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.7,<0.8"]
+build-backend = "uv_build"
 
-[tool.poetry]
-packages = [
-    { include = "sygnal" },
-]
+[tool.uv.build-backend]
+module-name = "sygnal"
+module-root = ""
 
 [tool.ruff]
 line-length = 88
