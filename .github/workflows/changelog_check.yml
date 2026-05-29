@@ -1,6 +1,10 @@
 name: Changelog
 on: [pull_request]
 
+permissions:
+  # Required to checkout the codebase.
+  contents: read
+
 jobs:
   check-newsfile:
     if: ${{ (github.base_ref == 'main'  || contains(github.base_ref, 'release-')) && github.event.pull_request.user.login != 'dependabot[bot]' }}
