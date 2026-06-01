@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# Script taken from the Synapse repo:
+# https://github.com/element-hq/synapse/blob/2aef6c33a842fe7f50e0a8492a0396412aed5115/.ci/scripts/triage_labelled_issue.sh
 set -euo pipefail
 
 # 1) Resolve project ID.
