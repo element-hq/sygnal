@@ -4,14 +4,20 @@ on:
     branches: ["main"]
   pull_request:
 
+permissions:
+  # Required to checkout the codebase.
+  contents: read
+
 jobs:
   check-code-style:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Poetry
-        uses: matrix-org/setup-python-poetry@v2
+        uses: matrix-org/setup-python-poetry@5bbf6603c5c930615ec8a29f1b5d7d258d905aa4 # v2
         with:
           install-project: "false"
           python-version: "3.12"
@@ -22,10 +28,12 @@ jobs:
   check-types-mypy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Poetry
-        uses: matrix-org/setup-python-poetry@v2
+        uses: matrix-org/setup-python-poetry@5bbf6603c5c930615ec8a29f1b5d7d258d905aa4 # v2
         with:
           install-project: "false"
           python-version: "3.12"
@@ -38,8 +46,10 @@ jobs:
     needs: [check-code-style, check-types-mypy]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
       - run: python -m pip install -e .
@@ -50,8 +60,10 @@ jobs:
     needs: [ check-code-style, check-types-mypy ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10"
       - name: Patch pyproject.toml to require oldest dependencies
