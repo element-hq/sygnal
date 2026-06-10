@@ -43,7 +43,7 @@ jobs:
       # otherwise we can't export the multi-arch image later
       # https://github.com/docker/buildx/issues/59#issuecomment-2770311050
       - name: Set up Docker
-        uses: docker/setup-docker-action@b2189fbf2a6592b51fee7cdd93ee2bfaeba733db # v5.1.0
+        uses: docker/setup-docker-action@0234bb73ccb40f0c430b795634f9247e2b5c2d23 # v5.2.0
         with:
           daemon-config: |
             {
@@ -69,7 +69,7 @@ jobs:
           persist-credentials: false
 
       - name: Build all platforms
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           push: false
