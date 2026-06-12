@@ -174,6 +174,7 @@ class WebpushTestCase(testutils.TestCase):
         super().setUp()
 
     def tearDown(self) -> None:
+        super().tearDown()
         os.unlink(self.vapid_key_path)
 
     def config_setup(self, config: Dict[str, Any]) -> None:
