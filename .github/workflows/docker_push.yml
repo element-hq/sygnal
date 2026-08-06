@@ -55,6 +55,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: Build and push all platforms
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         id: build-and-push
@@ -92,22 +95,25 @@ jobs:
       # attest the SBOM to the image's index manifest digest.
       # `push-to-registry` also stores the attestation as an OCI 1.1 referrer
       - name: Attest and push SBOM to docker.io
-        if: github.event_name != 'pull_request'
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6      # v4.2.0
         with:
           subject-name: docker.io/matrixdotorg/sygnal
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
-          predicate-type: https://cyclonedx.org/bom
-          predicate-path: sbom-container.cdx.json
+          sbom-path: sbom-container.cdx.json
           push-to-registry: true
 
       # Build provenance (SLSA L2+). Attest to the image's index manifest digest.
       # `push-to-registry` stores the attestation as an OCI 1.1 referrer
       - name: Provenance (docker.io)
-        if: github.event_name != 'pull_request'
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6   # v4.2.0
         with:
           subject-name: docker.io/matrixdotorg/sygnal
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
 
+      # --recursively signs the image index and the downstream platform/arch manifests
+      - name: Sign the images with GitHub's OIDC Token
+        env:
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: |
+            cosign sign --yes --recursive "docker.io/matrixdotorg/sygnal@${DIGEST}"
