@@ -78,3 +78,26 @@ jobs:
           # https://github.com/opencontainers/image-spec/blob/main/media-types.md
           outputs: type=oci
 
+      # generate container SBOM once per arch based on the image's digest
+      - name: Generate SBOM using Syft
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: docker.io/matrixdotorg/sygnal@${{ steps.build-and-push.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom-container.cdx.json
+          upload-artifact: true
+          upload-artifact-retention: 1
+          upload-release-assets: false
+
+      # attest the SBOM to the image's index manifest digest.
+      # `push-to-registry` also stores the attestation as an OCI 1.1 referrer
+      - name: Attest and push SBOM to docker.io
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6      # v4.2.0
+        with:
+          subject-name: docker.io/matrixdotorg/sygnal
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          predicate-type: https://cyclonedx.org/bom
+          predicate-path: sbom-container.cdx.json
+          push-to-registry: true
+
