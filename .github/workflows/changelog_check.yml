@@ -1,6 +1,11 @@
 name: Changelog
 on: [pull_request]
 
+# cancel multiple workflows runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   # Required to checkout the codebase.
   contents: read
