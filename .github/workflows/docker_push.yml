@@ -57,6 +57,7 @@ jobs:
 
       - name: Build and push all platforms
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        id: build-and-push
         with:
           context: .
           push: true
@@ -64,3 +65,16 @@ jobs:
           tags: "${{ steps.set-tag.outputs.tags }}"
           file: "docker/Dockerfile"
           platforms: linux/amd64,linux/arm64
+          # `docker/build-push-action` v6/v7 enables `provenance=true` by default.
+          # Buildkit bundles attestation manifests in the image index as unknown platform entries.
+          # https://github.com/goharbor/harbor/issues/22848
+          # Prefer tooling able to publish attestations (sbom and provenance) using the OCI referrers API.
+          # This is the standard way to associate OCI artifacts without affecting the image digest
+          # https://oras.land/docs/concepts/reftypes#the-art-of-associating-artifacts
+          provenance: false
+          sbom: false
+          # Buildkit default is OCI iff attestations are present, type=oci is set
+          # to ensure the image remains an OCI index. Shouldn't break anything but why risk it
+          # https://github.com/opencontainers/image-spec/blob/main/media-types.md
+          outputs: type=oci
+
