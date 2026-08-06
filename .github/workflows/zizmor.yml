@@ -2,6 +2,8 @@
 name: GitHub Actions Security Analysis with zizmor 🌈
 
 on:
+  schedule:
+    - cron: "0 0 1 * *"
   push:
     branches: ["main"]
   pull_request:
@@ -18,7 +20,7 @@ jobs:
   zizmor:
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
+      security-events: write # uploads results to gh advanced security
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
