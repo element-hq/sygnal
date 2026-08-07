@@ -7,17 +7,20 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-# cancel multiple workflows runs on the same branch
+# cancel multiple workflow_dispatch on the same ref
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read      # checkout codebase
+      attestations: write # gh attestations
+      id-token: write     # for cosign and actions/attest
     steps:
       - name: Set up QEMU
         id: qemu
