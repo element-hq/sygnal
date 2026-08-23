@@ -187,6 +187,13 @@ apps:
   #  # If the associated app supports encryption then this should probably be
   #  # false. Defaults to true.
   #
+  #  # If the homeserver includes the event `type` in an `event_id_only`-format
+  #  # notification, enabling this forwards it (and nothing else) instead of
+  #  # treating the notification as full-format; this lets VoIP clients report
+  #  # incoming calls to CallKit immediately, as Apple requires. Defaults to
+  #  # false.
+  #  #forward_event_type_for_event_id_only: true
+  #
   #  # This is the maximum number of in-flight requests *for this pushkin*
   #  # before additional notifications will be failed.
   #  # (This is a robustness measure to prevent one pushkin stacking up with
@@ -228,6 +235,12 @@ apps:
   #  # If the associated app supports encryption then this should probably be
   #  # false. Defaults to true.
   #  #send_badge_counts: false
+  #
+  #  # If the homeserver includes the event `type` in an `event_id_only`-format
+  #  # notification, enabling this forwards it (and nothing else); without it,
+  #  # the `type` of such a notification is dropped. This lets VoIP clients
+  #  # recognise incoming calls without fetching the event. Defaults to false.
+  #  #forward_event_type_for_event_id_only: true
   #
   #  # This is the maximum number of connections to GCM servers at any one time
   #  # the default is 20.
