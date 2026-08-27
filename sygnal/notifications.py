@@ -101,6 +101,27 @@ class Notification:
 
         self.devices = [Device(d) for d in notif["devices"]]
 
+    def is_event_id_only_shaped(self) -> bool:
+        """
+        Whether this notification is shaped like an `event_id_only`-format
+        notification: it carries an event ID, but none of the fields that
+        only a full-format notification carries (content, sender, room
+        name, …).
+
+        Such a notification may still carry the event `type`, e.g. when the
+        homeserver is configured to include it so that clients can recognise
+        incoming VoIP calls without fetching the event.
+        """
+        return (
+            self.event_id is not None
+            and self.content is None
+            and self.sender is None
+            and self.sender_display_name is None
+            and self.room_name is None
+            and self.room_alias is None
+            and self.membership is None
+        )
+
 
 class Pushkin(abc.ABC):
     def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
