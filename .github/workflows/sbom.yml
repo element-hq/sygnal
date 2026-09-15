@@ -83,7 +83,7 @@ jobs:
 
       - name: Ensure the collection parent project exists or create it
         id: parent
-        run: ./.ci/scripts/create-parent-project.sh
+        run: ./.ci/scripts/create-parent-project.py
         env:
           DEPENDENCY_TRACK_HOST: ${{ secrets.DEPENDENCY_TRACK_HOST }}
           DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
