@@ -85,7 +85,7 @@ jobs:
         id: parent
         run: ./.ci/scripts/create-parent-project.py
         env:
-          DEPENDENCY_TRACK_HOST: ${{ secrets.DEPENDENCY_TRACK_HOST }}
+          DEPENDENCY_TRACK_HOST: ${{ vars.DEPENDENCY_TRACK_HOST }}
           DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           PROJECT_NAME: ${{ env.PARENT_PROJECT_NAME }}
           PROJECT_VERSION: ${{ env.PROJECT_VERSION }}
@@ -117,7 +117,7 @@ jobs:
       - name: Upload SBOM to Dependency-Track
         uses: DependencyTrack/gh-upload-sbom@d8935b70f527d6aca6bbef5ab02db3933c9a8626 # v4.2.0
         with:
-          server-hostname: ${{ secrets.DEPENDENCY_TRACK_HOST }}
+          server-hostname: ${{ vars.DEPENDENCY_TRACK_HOST }}
           api-key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
           bom-filename: sbom-source.cdx.json
           project-name: ${{ env.SOURCE_PROJECT_NAME }}
