@@ -25,6 +25,11 @@ on:
       # changes to the proxy-test setup
       - 'scripts-dev/proxy-test/**'
 
+# cancel multiple workflows runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
