@@ -123,7 +123,7 @@ def main() -> None:
         "name": name,
         "version": version,
         "isLatest": True,
-        "collectionLogic": "AGGREGATE_DIRECT_CHILDREN",
+        # "collectionLogic": "AGGREGATE_DIRECT_CHILDREN",
     }
     tags = parse_tags(os.environ.get("PROJECT_TAGS", ""))
     if tags:
