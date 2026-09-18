@@ -1,0 +1,1 @@
+Add a per-app `forward_event_type_for_event_id_only` configuration option: when enabled, an `event_id_only`-shaped notification that carries the event `type` keeps the minimal payload (instead of being treated as full-format on APNs) and forwards the `type`, so that VoIP clients can recognise incoming calls without fetching the event.
