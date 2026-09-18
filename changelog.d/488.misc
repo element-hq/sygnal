@@ -1,1 +1,1 @@
-disable `collectionLogic` in `create-parent-project.py` until we update dt.
+Generate SBOMs for docker images. Contributed by @gian2dchris.
