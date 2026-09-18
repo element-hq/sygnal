@@ -123,7 +123,8 @@ def main() -> None:
         "name": name,
         "version": version,
         "isLatest": True,
-        "collectionLogic": "AGGREGATE_DIRECT_CHILDREN",
+        # TODO: Enable later. Not available in our current version of DependencyTrack.
+        # "collectionLogic": "AGGREGATE_DIRECT_CHILDREN",
     }
     tags = parse_tags(os.environ.get("PROJECT_TAGS", ""))
     if tags:
