@@ -1,0 +1,1 @@
+Add opt-in `include_notification_content` config for GCM/FCM v1 pushkins, injecting visible notification title and body derived from the push data. This ensures reliable iOS push delivery, as data-only FCM messages are throttled by iOS in the background.
