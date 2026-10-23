@@ -6,7 +6,7 @@ this case, the [GNU Affero General Public License v3](LICENSE-AGPL-3.0).
 
 ### Installing dependencies
 
-To contribute to Sygnal, ensure you have Python 3.8 or newer and then run:
+To contribute to Sygnal, ensure you have Python 3.11 or newer and then run:
 
 Sygnal uses the [poetry](https://python-poetry.org/) project to manage its dependencies
 and development environment. Once you have installed Python 3 and added the
@@ -107,7 +107,7 @@ Many of the conventions are enforced by scripts which are run as part of the
 [continuous integration system](#continuous-integration-and-testing).
 
 To help check and fix adherence to the code style, you can run `tox`
-locally. You'll need Python 3.8 or later:
+locally. You'll need Python 3.11 or later:
 
 ```bash
 # Run the code style check
@@ -263,7 +263,7 @@ and update your branch.
 After installing tox with `pip install tox`, you can use the following to run
 unit tests and lints in a local development environment:
 
-- `tox -e py38` to run unit tests on Python 3.8.
+- `tox -e py` to run unit tests on your current Python interpreter (3.11 or later).
 - `tox -e check_codestyle` to check code style and formatting.
 - `tox -e check_types` to check types with MyPy.
 - `tox` **to do all of the above.**

@@ -15,13 +15,13 @@ from base64 import urlsafe_b64encode
 from typing import Optional, Tuple
 
 from twisted.internet import defer, protocol
-from twisted.internet.base import ReactorBase
 from twisted.internet.defer import Deferred
 from twisted.internet.interfaces import (
     IAddress,
     IConnector,
     IProtocol,
     IProtocolFactory,
+    IReactorTime,
     IStreamClientEndpoint,
 )
 from twisted.internet.protocol import Protocol, connectionDone
@@ -56,7 +56,7 @@ class HTTPConnectProxyEndpoint:
 
     def __init__(
         self,
-        reactor: ReactorBase,
+        reactor: IReactorTime,
         proxy_endpoint: IStreamClientEndpoint,
         host: bytes,
         port: int,
@@ -114,7 +114,7 @@ class HTTPProxiedClientFactory(protocol.ClientFactory):
     def startedConnecting(self, connector: IConnector) -> None:
         return self.wrapped_factory.startedConnecting(connector)
 
-    def buildProtocol(self, addr: IAddress) -> "HTTPConnectProtocol":
+    def buildProtocol(self, addr: Optional[IAddress]) -> "HTTPConnectProtocol":
         wrapped_protocol = self.wrapped_factory.buildProtocol(addr)
         assert wrapped_protocol is not None
 

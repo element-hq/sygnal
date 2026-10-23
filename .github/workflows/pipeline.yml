@@ -25,8 +25,8 @@ jobs:
         uses: matrix-org/setup-python-poetry@5bbf6603c5c930615ec8a29f1b5d7d258d905aa4 # v2.0.0
         with:
           install-project: "false"
-          python-version: "3.12"
-          poetry-version: "2.2.1"
+          python-version: "3.14"
+          poetry-version: "2.5.1"
 
       - run: poetry run tox -e check_codestyle
 
@@ -41,8 +41,8 @@ jobs:
         uses: matrix-org/setup-python-poetry@5bbf6603c5c930615ec8a29f1b5d7d258d905aa4 # v2.0.0
         with:
           install-project: "false"
-          python-version: "3.12"
-          poetry-version: "2.2.1"
+          python-version: "3.14"
+          poetry-version: "2.5.1"
 
       - run: poetry run tox -e check_types
 
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - run: python -m pip install -e .
       - run: python -m twisted.trial tests
 
@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.10"
+          python-version: "3.11"
       - name: Patch pyproject.toml to require oldest dependencies
         run: |
           # Ugly. Could use something like https://pyproject-parser.readthedocs.io/en/latest/cli.html#info in the future.

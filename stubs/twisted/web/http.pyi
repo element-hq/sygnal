@@ -9,7 +9,7 @@ from twisted.web.http_headers import Headers
 from twisted.web.iweb import IAccessLogFormatter, IRequest
 from zope.interface import implementer, provider
 
-class HTTPChannel: ...
+class HTTPChannel(LineReceiver): ...
 
 # Type ignore: I don't want to respecify the methods on the interface that we
 # don't use.
