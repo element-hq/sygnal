@@ -30,6 +30,7 @@ from hashlib import blake2s
 from typing import Any, Dict, List, Optional, cast
 from unittest.mock import Mock
 
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from py_vapid import Vapid
@@ -160,7 +161,7 @@ class WebpushTestCase(testutils.TestCase):
         vapid.save_key(self.vapid_key_path)
 
         # Generate an ECDH subscription key-pair (p256dh) and auth secret.
-        private_key = ec.generate_private_key(ec.SECP256R1())
+        private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
         pub_raw = private_key.public_key().public_bytes(
             Encoding.X962, PublicFormat.UncompressedPoint
         )
