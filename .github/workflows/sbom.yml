@@ -115,7 +115,7 @@ jobs:
       # `parent-name`/`parent-version` attach this to the release collection project, which is
       # what makes AGGREGATE_DIRECT_CHILDREN roll it up. The tags are for filtering only.
       - name: Upload SBOM to Dependency-Track
-        uses: DependencyTrack/gh-upload-sbom@d8935b70f527d6aca6bbef5ab02db3933c9a8626 # v4.2.0
+        uses: DependencyTrack/gh-upload-sbom@331f980a6eba119842052f447c54b09e4888b4c6 # v4.3.0
         with:
           server-hostname: ${{ vars.DEPENDENCY_TRACK_HOST }}
           api-key: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
