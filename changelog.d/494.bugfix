@@ -1,0 +1,1 @@
+Fix WebPush when `pywebpush` 2.2.0 or later is installed.
