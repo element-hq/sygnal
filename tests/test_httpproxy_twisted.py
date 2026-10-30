@@ -224,7 +224,7 @@ def _get_test_protocol_factory():
     server_factory = Factory.forProtocol(HTTPChannel)
 
     # Request.finish expects the factory to have a 'log' method.
-    server_factory.log = _log_request
+    server_factory.log = _log_request  # type: ignore[attr-defined]
 
     return server_factory
 
