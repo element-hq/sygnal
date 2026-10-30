@@ -107,6 +107,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         "push_type",
         "convert_device_token_to_hex",
         "send_badge_counts",
+        "forward_event_type_for_event_id_only",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
     APNS_PUSH_TYPES = {
@@ -315,12 +316,25 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
                     return [device.pushkey]
 
             send_badge_counts = self.get_config("send_badge_counts", bool, True)
+            forward_event_type = self.get_config(
+                "forward_event_type_for_event_id_only", bool, False
+            )
 
-            if n.event_id and not n.type:
+            # An event_id_only-shaped notification normally carries no event
+            # `type`. Homeservers may be configured to include it anyway (e.g.
+            # so that a VoIP client can recognise an incoming call without
+            # fetching the event). With `forward_event_type_for_event_id_only`
+            # enabled, such a notification still takes the event_id_only path
+            # — forwarding the `type` — rather than being treated as a
+            # full-format notification.
+            if n.event_id and (
+                not n.type or (forward_event_type and n.is_event_id_only_shaped())
+            ):
                 payload: Optional[Dict[str, Any]] = self._get_payload_event_id_only(
                     n,
                     default_payload,
                     send_badge_counts,
+                    forward_event_type,
                 )
             else:
                 payload = self._get_payload_full(n, device, log, send_badge_counts)
@@ -390,6 +404,7 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
         n: Notification,
         default_payload: Dict[str, Any],
         send_badge_counts: bool,
+        forward_event_type: bool,
     ) -> Dict[str, Any]:
         """
         Constructs a payload for a notification where we know only the event ID.
@@ -398,6 +413,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
             device: Device information to which the constructed payload
             will be sent.
             send_badge_counts: if `True`, the `unread_count` and `missed_calls` fields will be included.
+            forward_event_type: if `True`, the event `type` will be included
+            when the notification carries one.
 
         Returns:
             The APNs payload as a nested dicts.
@@ -410,6 +427,8 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
             payload["room_id"] = n.room_id
         if n.event_id:
             payload["event_id"] = n.event_id
+        if forward_event_type and n.type:
+            payload["type"] = n.type
 
         if send_badge_counts:
             if n.counts.unread is not None:

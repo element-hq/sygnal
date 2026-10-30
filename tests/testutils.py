@@ -130,6 +130,16 @@ class TestCase(unittest.TestCase):
             }
         }
 
+    def _make_dummy_notification_event_id_only_with_type(self, devices):
+        """
+        An event_id_only-shaped notification which additionally carries the
+        event `type`, as a homeserver configured to do so would send it
+        (e.g. for VoIP call notifications).
+        """
+        notif = self._make_dummy_notification_event_id_only(devices)
+        notif["notification"]["type"] = "m.call.invite"
+        return notif
+
     def _make_dummy_notification_badge_only(self, devices):
         return {
             "notification": {
