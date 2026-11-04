@@ -123,6 +123,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         "api_key",
         "api_version",
         "fcm_options",
+        "include_notification_content",
         "max_connections",
         "project_id",
         "service_account_file",
@@ -578,6 +579,29 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 new_body = body
                 body = {}
                 body["message"] = new_body
+
+                # When include_notification_content is enabled, add a visible
+                # notification payload derived from the message data.
+                # This is required for reliable iOS push delivery via FCM:
+                # data-only messages are throttled/dropped by iOS in the
+                # background, while notification messages are displayed
+                # immediately. See https://github.com/element-hq/sygnal/issues/366
+                include_notification = self.get_config(
+                    "include_notification_content", bool, False
+                )
+                if include_notification:
+                    msg_data = new_body.get("data", {})
+                    title = (
+                        msg_data.get("room_name")
+                        or msg_data.get("sender_display_name")
+                        or msg_data.get("sender")
+                        or "New Message"
+                    )
+                    notification_body = msg_data.get("content_body", "New Message")
+                    body["message"]["notification"] = {
+                        "title": title,
+                        "body": notification_body,
+                    }
 
             for retry_number in range(0, MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the
