@@ -6,9 +6,9 @@
 #    docker build -f docker/Dockerfile .
 #
 
-ARG DEBIAN_VERSION=bookworm
-ARG PYTHON_VERSION=3.12
-ARG POETRY_VERSION=2.2.1
+ARG DEBIAN_VERSION=trixie
+ARG PYTHON_VERSION=3.14
+ARG POETRY_VERSION=2.5.1
 
 ###
 ### Stage 0: generate requirements.txt
