@@ -168,6 +168,13 @@ class GcmTestCase(testutils.TestCase):
             # This pusher is specifically testing that this field is `False`.
             "send_badge_counts": False,
         }
+        config["apps"]["fcm-with-forwarded-event-type"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "api_key": "kii",
+            "api_version": "legacy",
+            # This pusher is specifically testing that this field is `True`.
+            "forward_event_type_for_event_id_only": True,
+        }
         self.service_account_file = tempfile.NamedTemporaryFile()
         self.service_account_file.write(FAKE_SERVICE_ACCOUNT_FILE)
         self.service_account_file.flush()
@@ -220,6 +227,15 @@ class GcmTestCase(testutils.TestCase):
                     },
                 },
             },
+        }
+
+        config["apps"]["com.example.gcm.apiv1.forward-type"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "api_version": "v1",
+            "project_id": "example_project",
+            "service_account_file": self.service_account_file.name,
+            # This pusher is specifically testing that this field is `True`.
+            "forward_event_type_for_event_id_only": True,
         }
 
     def tearDown(self) -> None:
@@ -776,6 +792,152 @@ class GcmTestCase(testutils.TestCase):
                 "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
                 "prio": "high",
                 "room_id": "!slw48wfj34rtnrf:example.com",
+            },
+        )
+
+    def test_event_id_only_with_type_default_off(self) -> None:
+        """
+        Tests that with `forward_event_type_for_event_id_only` unset, the
+        `type` of an event_id_only-shaped notification is not forwarded.
+        """
+        gcm = self.get_test_pushkin("com.example.gcm")
+        gcm.preload_with_response(
+            200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_event_id_only_with_type([DEVICE_EXAMPLE])
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        self.assertEqual(
+            gcm.last_request_body["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "prio": "high",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "unread": 2,
+            },
+        )
+
+    def test_forward_event_type_for_event_id_only(self) -> None:
+        """
+        Tests that with `forward_event_type_for_event_id_only` enabled, the
+        `type` of an event_id_only-shaped notification is forwarded.
+        """
+        gcm = self.get_test_pushkin("fcm-with-forwarded-event-type")
+        gcm.preload_with_response(
+            200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_event_id_only_with_type(
+                [
+                    {
+                        "app_id": "fcm-with-forwarded-event-type",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        self.assertEqual(
+            gcm.last_request_body["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "type": "m.call.invite",
+                "prio": "high",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "unread": 2,
+            },
+        )
+
+    def test_forward_event_type_for_event_id_only_api_v1(self) -> None:
+        """
+        Tests that with `forward_event_type_for_event_id_only` enabled in
+        API v1, the `type` of an event_id_only-shaped notification is
+        forwarded.
+        """
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.forward-type")
+        gcm.preload_with_response(
+            200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification_event_id_only_with_type(
+                [
+                    {
+                        "app_id": "com.example.gcm.apiv1.forward-type",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        self.assertEqual(
+            gcm.last_request_body["message"]["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "type": "m.call.invite",
+                "prio": "high",
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "unread": "2",
+            },
+        )
+
+    def test_forward_event_type_full_notification_untouched(self) -> None:
+        """
+        Tests that `forward_event_type_for_event_id_only` does not change the
+        handling of a full-format notification.
+        """
+        gcm = self.get_test_pushkin("fcm-with-forwarded-event-type")
+        gcm.preload_with_response(
+            200, {"results": [{"message_id": "msg42", "registration_id": "spqr"}]}
+        )
+
+        resp = self._request(
+            self._make_dummy_notification(
+                [
+                    {
+                        "app_id": "fcm-with-forwarded-event-type",
+                        "pushkey": "spqr",
+                        "pushkey_ts": 42,
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        assert gcm.last_request_body is not None
+
+        self.assertEqual(
+            gcm.last_request_body["data"],
+            {
+                "event_id": "$qTOWWTEL48yPm3uT-gdNhFcoHxfKbZuqRVnnWWSkGBs",
+                "type": "m.room.message",
+                "sender": "@exampleuser:matrix.org",
+                "room_name": "Mission Control",
+                "room_alias": "#exampleroom:matrix.org",
+                "sender_display_name": "Major Tom",
+                "content": {
+                    "msgtype": "m.text",
+                    "body": "I'm floating in a most peculiar way.",
+                    "other": 1,
+                },
+                "room_id": "!slw48wfj34rtnrf:example.com",
+                "prio": "high",
+                "unread": 2,
+                "missed_calls": 1,
             },
         )
 
