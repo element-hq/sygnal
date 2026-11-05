@@ -385,10 +385,13 @@ class HttpDelayedRequest:
             passes.
         text:
             Set to None as pywebpush references this field for its logging.
+        headers:
+            Set to None as pywebpush references this field for its logging.
     """
 
     status_code: int = 200
     text: Optional[str] = None
+    headers: Optional[CaseInsensitiveDict] = None
 
     def __init__(self, endpoint: str, data: bytes, vapid_headers: CaseInsensitiveDict):
         self.endpoint = endpoint
