@@ -1,0 +1,1 @@
+Fix badge-only FCM pushes with a zero unread count being discarded since 0.17.0. Contributed by @jbrnzl.

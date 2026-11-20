@@ -731,14 +731,14 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         counts: Dict[str, Any] = {}
         if send_badge_counts and getattr(n, "counts", None):
             if api_version is APIVersion.Legacy:
-                if n.counts.unread:
+                if n.counts.unread is not None:
                     counts["unread"] = n.counts.unread
-                if n.counts.missed_calls:
+                if n.counts.missed_calls is not None:
                     counts["missed_calls"] = n.counts.missed_calls
             elif api_version is APIVersion.V1:
-                if n.counts.unread:
+                if n.counts.unread is not None:
                     counts["unread"] = str(n.counts.unread)
-                if n.counts.missed_calls:
+                if n.counts.missed_calls is not None:
                     counts["missed_calls"] = str(n.counts.missed_calls)
 
         if not data.get("room_id") and not data.get("event_id") and not counts:
