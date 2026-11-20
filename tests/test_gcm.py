@@ -879,3 +879,36 @@ ooooooooooxxxxxxxxxx🦉oooooo£xxxxxxxx☻oo🦉…",
         self.assertEqual(
             notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
         )
+
+    def test_badge_only_notification_with_zero_unread_api_v1(self) -> None:
+        """
+        A badge push with all counts at zero tells the app that everything was
+        read: it must be sent, with the zero counts.
+        """
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1")
+        gcm.preload_with_response(200, {})
+
+        resp = self._request(
+            {
+                "notification": {
+                    "id": "",
+                    "type": None,
+                    "sender": "",
+                    "counts": {"unread": 0, "missed_calls": 0},
+                    "devices": [
+                        {
+                            "app_id": "com.example.gcm.apiv1",
+                            "pushkey": "spqr",
+                            "pushkey_ts": 42,
+                        }
+                    ],
+                }
+            }
+        )
+
+        self.assertEqual(resp, {"rejected": []})
+        self.assertEqual(gcm.num_requests, 1)
+        self.assertEqual(
+            gcm.last_request_body["message"]["data"],
+            {"sender": "", "prio": "high", "unread": "0", "missed_calls": "0"},
+        )
