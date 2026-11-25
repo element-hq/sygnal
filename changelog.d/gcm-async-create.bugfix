@@ -1,0 +1,1 @@
+Move aiohttp.ClientSession creation to async create() factory to avoid deprecation warning when instantiated outside a running event loop.
