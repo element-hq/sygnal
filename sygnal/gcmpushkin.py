@@ -127,6 +127,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         "project_id",
         "service_account_file",
         "send_badge_counts",
+        "forward_event_type_for_event_id_only",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
     def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]) -> None:
@@ -540,8 +541,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             failed: List[str] = []
 
             send_badge_counts = self.get_config("send_badge_counts", bool, True)
+            forward_event_type = self.get_config(
+                "forward_event_type_for_event_id_only", bool, False
+            )
             data = GcmPushkin._build_data(
-                n, device, self.api_version, send_badge_counts
+                n, device, self.api_version, send_badge_counts, forward_event_type
             )
 
             # Reject pushkey(s) if default_payload is misconfigured
@@ -659,6 +663,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         device: Device,
         api_version: APIVersion,
         send_badge_counts: bool,
+        forward_event_type: bool,
     ) -> Optional[Dict[str, Any]]:
         """
         Build the payload data to be sent.
@@ -668,6 +673,9 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             will be sent.
             api_version: API version used by Firebase/GCM.
             send_badge_counts: If set to `True`, will send the unread and missed_call counts.
+            forward_event_type: If set to `True`, the event `type` of an
+            event_id_only-shaped notification will be forwarded. Full-format
+            notifications always carry their `type`, regardless of this setting.
 
         Returns:
             JSON-compatible dict. The dict will be empty if the payload was
@@ -698,6 +706,16 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             "content",
             "room_id",
         ]:
+            if (
+                attr == "type"
+                and not forward_event_type
+                and n.is_event_id_only_shaped()
+            ):
+                # An event_id_only-shaped notification normally carries no
+                # `type`. Unless explicitly opted in, do not forward one:
+                # the event type is metadata the push service does not need
+                # to see.
+                continue
             if hasattr(n, attr):
                 current = getattr(n, attr)
                 if current is None:
