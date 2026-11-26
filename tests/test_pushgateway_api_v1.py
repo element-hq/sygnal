@@ -191,6 +191,7 @@ class PushGatewayApiV1TestCase(testutils.TestCase):
         # connect the site to a fake transport.
         transport = StringTransport()
         protocol = self.site.buildProtocol(IPv6Address("TCP", "::1", 2345))
+        assert protocol is not None
         protocol.makeConnection(transport)
 
         protocol.dataReceived(
@@ -208,6 +209,7 @@ class PushGatewayApiV1TestCase(testutils.TestCase):
         # now send an oversized request
         transport = StringTransport()
         protocol = self.site.buildProtocol(IPv6Address("TCP", "::1", 2345))
+        assert protocol is not None
         protocol.makeConnection(transport)
 
         protocol.dataReceived(

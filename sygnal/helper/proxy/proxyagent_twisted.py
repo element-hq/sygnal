@@ -12,11 +12,15 @@
 
 import logging
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from twisted.internet import defer
 from twisted.internet.endpoints import HostnameEndpoint, wrapClientTLS
-from twisted.internet.interfaces import IReactorCore, IStreamClientEndpoint
+from twisted.internet.interfaces import (
+    IReactorCore,
+    IReactorTime,
+    IStreamClientEndpoint,
+)
 from twisted.python.failure import Failure
 from twisted.web.client import (
     URI,
@@ -67,7 +71,7 @@ class ProxyAgent(_AgentBase):
         pool: Optional[HTTPConnectionPool] = None,
         proxy_url_str: Optional[str] = None,
     ):
-        _AgentBase.__init__(self, reactor, pool)
+        _AgentBase.__init__(self, cast(IReactorTime, reactor), pool)
 
         self._endpoint_kwargs: Dict[str, Any] = {}
         if connectTimeout is not None:
@@ -166,6 +170,14 @@ class ProxyAgent(_AgentBase):
                 )
             )
 
+        # For `pool_key`, the underlying `HTTPConnectionPool.getConnection` accepts any `Hashable`.
+        # We should probably find a different workaround, but we've had this hack for a long time.
         return self._requestWithEndpoint(
-            pool_key, endpoint, method, parsed_uri, headers, bodyProducer, request_path
+            pool_key,  # type: ignore[arg-type]
+            endpoint,
+            method,
+            parsed_uri,
+            headers,
+            bodyProducer,
+            request_path,
         )
